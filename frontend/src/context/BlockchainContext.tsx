@@ -10,6 +10,9 @@ interface BlockchainContextType {
   disconnectWallet: () => void;
   isAdmin: boolean;
   isVerifier: boolean;
+  checkVerification: (addr: string) => Promise<boolean>;
+  checkRegistration: (addr: string) => Promise<boolean>;
+  getUserAccessHistory: (addr: string) => Promise<number[]>;
 }
 
 const BlockchainContext = createContext<BlockchainContextType | undefined>(undefined);
@@ -83,12 +86,13 @@ export const BlockchainProvider: React.FC<{ children: ReactNode }> = ({ children
     if (window.ethereum) {
       try {
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        handleAccountsChanged(accounts);
-      } catch (err) {
+        await handleAccountsChanged(accounts);
+      } catch (err: any) {
         console.error("Connection rejected", err);
+        throw err; // Propagate the error to the caller
       }
     } else {
-      alert("Please install MetaMask!");
+      throw new Error("Please install MetaMask!");
     }
   };
 
@@ -99,8 +103,42 @@ export const BlockchainProvider: React.FC<{ children: ReactNode }> = ({ children
     setIsVerifier(false);
   };
 
+  const checkVerification = async (addr: string): Promise<boolean> => {
+    if (!contract) return false;
+    try {
+      return await contract.checkVerification(addr);
+    } catch (err) {
+      console.error("Verification check error:", err);
+      return false;
+    }
+  };
+
+  const checkRegistration = async (addr: string): Promise<boolean> => {
+    if (!contract) return false;
+    try {
+      const user = await contract.users(addr);
+      return user.name && user.name.length > 0;
+    } catch (err) {
+      console.error("Registration check error:", err);
+      return false;
+    }
+  };
+  const getUserAccessHistory = async (addr: string): Promise<number[]> => {
+    if (!contract) return [];
+    try {
+      const history = await contract.getUserAccessHistory(addr);
+      return history.map((h: any) => Number(h));
+    } catch (err) {
+      console.error("History fetch error:", err);
+      return [];
+    }
+  };
+
   return (
-    <BlockchainContext.Provider value={{ account, provider, contract, connectWallet, disconnectWallet, isAdmin, isVerifier }}>
+    <BlockchainContext.Provider value={{ 
+      account, provider, contract, connectWallet, disconnectWallet, 
+      isAdmin, isVerifier, checkVerification, checkRegistration, getUserAccessHistory 
+    }}>
       {children}
     </BlockchainContext.Provider>
   );

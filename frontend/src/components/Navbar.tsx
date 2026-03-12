@@ -1,12 +1,19 @@
 import React from 'react';
 import { useBlockchain } from '../context/BlockchainContext';
+import { useAuth } from '../context/AuthContext';
 import { Link, useLocation } from 'react-router-dom';
 
 const Navbar: React.FC = () => {
-  const { account, connectWallet, disconnectWallet, isAdmin, isVerifier } = useBlockchain();
+  const { account, connectWallet, disconnectWallet, isVerifier } = useBlockchain();
+  const { user, isAuthenticated, logout } = useAuth();
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleLogout = () => {
+    logout();
+    disconnectWallet();
+  };
 
   return (
     <nav className="glass" style={{ 
@@ -25,28 +32,51 @@ const Navbar: React.FC = () => {
           <h2 style={{ margin: 0, fontSize: '1.25rem', letterSpacing: '0.1em', textTransform: 'uppercase' }}>DeKYC</h2>
         </Link>
         <div style={{ display: 'flex', gap: '1.5rem' }}>
-          <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>Market</Link>
-          {account && <Link to="/user" className={`nav-link ${isActive('/user') ? 'active' : ''}`}>Dashboard</Link>}
-          {isVerifier && <Link to="/verifier" className={`nav-link ${isActive('/verifier') ? 'active' : ''}`}>Verify</Link>}
-          {isAdmin && <Link to="/admin" className={`nav-link ${isActive('/admin') ? 'active' : ''}`}>Admin</Link>}
+          <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>Protocol</Link>
+          <Link to="/explorer" className={`nav-link ${isActive('/explorer') ? 'active' : ''}`}>Explorer</Link>
+          {isAuthenticated && (
+            <>
+              {/* User-Specific Links */}
+              {user?.role === 'user' && (
+                <>
+                  <Link to="/user" className={`nav-link ${isActive('/user') ? 'active' : ''}`}>My Identity</Link>
+                  <Link to="/verify" className={`nav-link ${isActive('/verify') ? 'active' : ''}`}>Verify Identity</Link>
+                  <Link to="/vault" className={`nav-link ${isActive('/vault') ? 'active' : ''}`}>Vault</Link>
+                </>
+              )}
+
+              {/* Entity-Specific Links */}
+              {user?.role === 'entity' && (
+                <>
+                  <Link to="/entity" className={`nav-link ${isActive('/entity') ? 'active' : ''}`}>Institution Portal</Link>
+                </>
+              )}
+
+              {/* Verifier Specific */}
+              {isVerifier && (
+                <Link to="/verifier" className={`nav-link ${isActive('/verifier') ? 'active' : ''}`}>Verifier Portal</Link>
+              )}
+            </>
+          )}
         </div>
       </div>
       
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        {account ? (
+        {!isAuthenticated ? (
+          <Link to="/login" className="btn btn-primary" style={{ textDecoration: 'none' }}>Login / Signup</Link>
+        ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div className="account-pill glass">
-              <span className="dot"></span>
-              <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>{account.slice(0, 6)}...{account.slice(-4)}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{user?.username}</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{account?.slice(0, 6)}...{account?.slice(-4)}</span>
             </div>
-            <button onClick={disconnectWallet} className="btn btn-outline" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
-              Disconnect
+            <div className="account-pill glass" style={{ padding: '0.4rem' }}>
+              <span className="dot"></span>
+            </div>
+            <button onClick={handleLogout} className="btn btn-outline" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+              Sign Out
             </button>
           </div>
-        ) : (
-          <button onClick={connectWallet} className="btn btn-primary">
-            Connect Wallet
-          </button>
         )}
       </div>
 

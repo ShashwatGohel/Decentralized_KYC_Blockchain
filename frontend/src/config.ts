@@ -1,19 +1,6 @@
-export const KYC_CONTRACT_ADDRESS = "0xb82f7750FF5a4C4352EdF212Fe0C168781F55eC6";
+export const KYC_CONTRACT_ADDRESS = "0x02351D4d1eBCD3d71E45460f95dC44421d7f9454";
 
 export const KYC_ABI = [
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "_v",
-				"type": "address"
-			}
-		],
-		"name": "addVerifier",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
 	{
 		"inputs": [
 			{
@@ -25,6 +12,16 @@ export const KYC_ABI = [
 				"internalType": "string",
 				"name": "_submittedHash",
 				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "_docType",
+				"type": "string"
+			},
+			{
+				"internalType": "enum DecentralizedKYC.EntityType",
+				"name": "_claimedType",
+				"type": "uint8"
 			}
 		],
 		"name": "checkDocumentHash",
@@ -35,6 +32,156 @@ export const KYC_ABI = [
 				"type": "bool"
 			}
 		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "checker",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "docType",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "enum DecentralizedKYC.EntityType",
+				"name": "entityType",
+				"type": "uint8"
+			}
+		],
+		"name": "DocumentCheckPassed",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "verifier",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "docType",
+				"type": "string"
+			}
+		],
+		"name": "DocumentVerified",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "entity",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "enum DecentralizedKYC.EntityType",
+				"name": "entityType",
+				"type": "uint8"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "name",
+				"type": "string"
+			}
+		],
+		"name": "EntityRegistered",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "entity",
+				"type": "address"
+			}
+		],
+		"name": "EntityRemoved",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_user",
+				"type": "address"
+			},
+			{
+				"internalType": "string",
+				"name": "_confirmedHash",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "_docType",
+				"type": "string"
+			}
+		],
+		"name": "institutionalVerify",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_entity",
+				"type": "address"
+			},
+			{
+				"internalType": "enum DecentralizedKYC.EntityType",
+				"name": "_type",
+				"type": "uint8"
+			},
+			{
+				"internalType": "string",
+				"name": "_name",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "_endpoint",
+				"type": "string"
+			}
+		],
+		"name": "registerEntity",
+		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
 	},
@@ -60,57 +207,27 @@ export const KYC_ABI = [
 		"inputs": [
 			{
 				"internalType": "address",
-				"name": "_v",
+				"name": "_entity",
 				"type": "address"
 			}
 		],
-		"name": "removeVerifier",
+		"name": "removeEntity",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
-		"inputs": [],
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_user",
+				"type": "address"
+			}
+		],
+		"name": "revokeUser",
+		"outputs": [],
 		"stateMutability": "nonpayable",
-		"type": "constructor"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "user",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "checker",
-				"type": "address"
-			}
-		],
-		"name": "HashCheckFailed",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "user",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "checker",
-				"type": "address"
-			}
-		],
-		"name": "HashCheckPassed",
-		"type": "event"
+		"type": "function"
 	},
 	{
 		"anonymous": false,
@@ -135,7 +252,7 @@ export const KYC_ABI = [
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "user",
 				"type": "address"
@@ -143,56 +260,6 @@ export const KYC_ABI = [
 		],
 		"name": "UserRevoked",
 		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "user",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "verifier",
-				"type": "address"
-			}
-		],
-		"name": "UserVerified",
-		"type": "event"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "_user",
-				"type": "address"
-			}
-		],
-		"name": "revokeUser",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "_user",
-				"type": "address"
-			},
-			{
-				"internalType": "string",
-				"name": "_confirmedHash",
-				"type": "string"
-			}
-		],
-		"name": "verifyUser",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
 	},
 	{
 		"inputs": [],
@@ -230,6 +297,83 @@ export const KYC_ABI = [
 		"inputs": [
 			{
 				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "entityRegistry",
+		"outputs": [
+			{
+				"internalType": "enum DecentralizedKYC.EntityType",
+				"name": "entityType",
+				"type": "uint8"
+			},
+			{
+				"internalType": "string",
+				"name": "name",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "apiEndpoint",
+				"type": "string"
+			},
+			{
+				"internalType": "bool",
+				"name": "isActive",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_user",
+				"type": "address"
+			},
+			{
+				"internalType": "string",
+				"name": "_docType",
+				"type": "string"
+			}
+		],
+		"name": "getDocumentHash",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_user",
+				"type": "address"
+			}
+		],
+		"name": "getUserAccessHistory",
+		"outputs": [
+			{
+				"internalType": "enum DecentralizedKYC.EntityType[]",
+				"name": "",
+				"type": "uint8[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
 				"name": "_user",
 				"type": "address"
 			}
@@ -242,24 +386,57 @@ export const KYC_ABI = [
 				"type": "string"
 			},
 			{
-				"internalType": "string",
-				"name": "documentHash",
-				"type": "string"
+				"internalType": "bool",
+				"name": "isRegistered",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_user",
+				"type": "address"
 			},
 			{
+				"internalType": "string",
+				"name": "_docType",
+				"type": "string"
+			}
+		],
+		"name": "isDocumentVerified",
+		"outputs": [
+			{
 				"internalType": "bool",
-				"name": "isVerified",
+				"name": "",
 				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
 			},
 			{
 				"internalType": "uint256",
-				"name": "verifiedAt",
+				"name": "",
 				"type": "uint256"
-			},
+			}
+		],
+		"name": "userEntityAccess",
+		"outputs": [
 			{
-				"internalType": "address",
-				"name": "verifiedBy",
-				"type": "address"
+				"internalType": "enum DecentralizedKYC.EntityType",
+				"name": "",
+				"type": "uint8"
 			}
 		],
 		"stateMutability": "view",
@@ -281,28 +458,32 @@ export const KYC_ABI = [
 				"type": "string"
 			},
 			{
-				"internalType": "string",
-				"name": "documentHash",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "verifiedHash",
-				"type": "string"
-			},
-			{
 				"internalType": "bool",
-				"name": "isVerified",
+				"name": "isRegistered",
 				"type": "bool"
-			},
-			{
-				"internalType": "uint256",
-				"name": "verifiedAt",
-				"type": "uint256"
-			},
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
 			{
 				"internalType": "address",
-				"name": "verifiedBy",
+				"name": "",
+				"type": "address"
+			},
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"name": "verifiedBy",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
 				"type": "address"
 			}
 		],
@@ -315,14 +496,19 @@ export const KYC_ABI = [
 				"internalType": "address",
 				"name": "",
 				"type": "address"
+			},
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
 			}
 		],
-		"name": "verifiers",
+		"name": "verifiedDocHashes",
 		"outputs": [
 			{
-				"internalType": "bool",
+				"internalType": "string",
 				"name": "",
-				"type": "bool"
+				"type": "string"
 			}
 		],
 		"stateMutability": "view",

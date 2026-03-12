@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useBlockchain } from '../context/BlockchainContext';
 
 const VerifierDashboard: React.FC = () => {
-    const { isVerifier, contract } = useBlockchain();
+    const { isVerifier, contract, account } = useBlockchain();
+    const { token, user } = useAuth();
     const [userAddress, setUserAddress] = useState('');
     const [documentHash, setDocumentHash] = useState('');
     const [loading, setLoading] = useState(false);
@@ -43,11 +45,50 @@ const VerifierDashboard: React.FC = () => {
         }
     };
 
+    const handleLinkWallet = async () => {
+        if (!account || !token) return;
+        setLoading(true);
+        try {
+            const res = await fetch('http://localhost:5000/api/auth/link-wallet', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-auth-token': token
+                },
+                body: JSON.stringify({ walletAddress: account })
+            });
+            if (res.ok) {
+                alert('Wallet linked successfully!');
+                window.location.reload();
+            } else {
+                const data = await res.json();
+                throw new Error(data.message);
+            }
+        } catch (err: any) {
+            alert(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="fade-in" style={{ maxWidth: '900px', margin: '0 auto' }}>
-            <div style={{ marginBottom: '3rem' }}>
-                <h1 style={{ fontSize: '2.5rem' }}>Verification Engine</h1>
-                <p>Process pending identities and validate cryptographic certificates.</p>
+            <div style={{ marginBottom: '3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                    <h1 style={{ fontSize: '2.5rem' }}>Verification Engine</h1>
+                    <p>Process pending identities and validate cryptographic certificates.</p>
+                </div>
+                {!user?.walletAddress && account && (
+                    <div className="glass" style={{ background: 'rgba(255,165,0,0.1)', border: '1px solid orange', padding: '1rem 1.5rem', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div style={{ fontSize: '0.8rem' }}>
+                            <div style={{ color: 'orange', fontWeight: 700 }}>⚠️ WALLET NOT LINKED</div>
+                            <div style={{ opacity: 0.7 }}>{account.slice(0,6)}...</div>
+                        </div>
+                        <button className="btn btn-primary" onClick={handleLinkWallet} disabled={loading} style={{ background: 'orange', border: 'none', color: '#000', padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+                            Link Now
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div className="glass" style={{ padding: '3.5rem' }}>
