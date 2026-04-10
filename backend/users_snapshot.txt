@@ -1,0 +1,11 @@
+=== DB USERS LIST ===
+- Username: CodeX
+  Role:     user
+  Wallet:   0xfc61ac7ea45c4143cbd99fdf5eda18407e5833be
+  _id:      69b1432558c0409f368f8626
+--------------------
+- Username: JayShah
+  Role:     entity
+  Wallet:   0xb78d867e61f1f6e84a8c41e6c5b22696249573b9
+  _id:      69b1577e8ad212b9dcfb56bd
+--------------------

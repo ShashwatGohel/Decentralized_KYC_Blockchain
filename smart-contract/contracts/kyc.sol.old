@@ -1,0 +1,191 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract DecentralizedKYC {
+
+    address public admin;
+
+    enum EntityType { BANK, CRYPTO_EXCHANGE, INSURANCE, GOVERNMENT, HEALTHCARE, DEFI, TELECOM, OTHER }
+
+    struct EntityInfo {
+        EntityType entityType;
+        string name;
+        string apiEndpoint;
+        bool isActive;
+    }
+
+    struct User {
+        string name;
+        bool isRegistered;
+    }
+
+    mapping(address => User) public users;
+    mapping(address => EntityInfo) public entityRegistry;
+
+    // Per-document hash storage: user => docType => hash
+    // e.g. verifiedDocHashes[0xUser]["Aadhar Card"] = "0xABC..."
+    mapping(address => mapping(string => string)) public verifiedDocHashes;
+
+    // Track which entity verified which doc for a user
+    mapping(address => mapping(string => address)) public verifiedBy;
+
+    // Access history: user => list of entity types that have verified them
+    mapping(address => EntityType[]) public userEntityAccess;
+
+    event UserRegistered(address user, string name);
+    event DocumentVerified(address indexed user, address indexed verifier, string docType);
+    event DocumentCheckPassed(address indexed user, address indexed checker, string docType, EntityType entityType);
+    event UserRevoked(address indexed user);
+    event EntityRegistered(address indexed entity, EntityType entityType, string name);
+    event EntityRemoved(address indexed entity);
+
+    constructor() {
+        admin = msg.sender;
+    }
+
+    modifier onlyAdmin() {
+        require(msg.sender == admin, "Only admin can do this");
+        _;
+    }
+
+    modifier onlyRegisteredEntity() {
+        require(entityRegistry[msg.sender].isActive, "Only registered entities can perform this action");
+        _;
+    }
+
+    // ─── Entity Registration ─────────────────────────────────────────────────
+
+    // Any institution can self-register
+    function registerEntity(
+        address _entity,
+        EntityType _type,
+        string memory _name,
+        string memory _endpoint
+    ) public {
+        require(!entityRegistry[_entity].isActive, "Entity already registered");
+        entityRegistry[_entity] = EntityInfo(_type, _name, _endpoint, true);
+        emit EntityRegistered(_entity, _type, _name);
+    }
+
+    function removeEntity(address _entity) public onlyAdmin {
+        entityRegistry[_entity].isActive = false;
+        emit EntityRemoved(_entity);
+    }
+
+    // ─── User Registration ───────────────────────────────────────────────────
+
+    function registerUser(
+        string memory _name,
+        string memory _docHash
+    ) public {
+        require(bytes(users[msg.sender].name).length == 0, "Already registered");
+        users[msg.sender] = User(_name, true);
+        // Store the self-declared docHash as the initial documentHash (not yet verified)
+        verifiedDocHashes[msg.sender]["self_declared"] = _docHash;
+        emit UserRegistered(msg.sender, _name);
+    }
+
+    // ─── Peer Verification (Core Flow) ──────────────────────────────────────
+
+    /**
+     * @notice An approved institution verifies a user's document.
+     *         - If this is the FIRST time this docType is verified, the hash is anchored.
+     *         - If a hash already exists, the submitted hash MUST match (prevents overwriting with wrong values).
+     * @param _user Wallet address of the user
+     * @param _confirmedHash SHA-256 hash of the verified document
+     * @param _docType Document type string, e.g. "Aadhar Card", "PAN Card"
+     */
+    function institutionalVerify(
+        address _user,
+        string memory _confirmedHash,
+        string memory _docType
+    ) public onlyRegisteredEntity {
+        require(bytes(users[_user].name).length > 0, "User not registered on-chain");
+        require(bytes(_confirmedHash).length > 0, "Hash cannot be empty");
+
+        string memory existingHash = verifiedDocHashes[_user][_docType];
+
+        if (bytes(existingHash).length > 0) {
+            // Hash already anchored: MUST match
+            require(
+                keccak256(bytes(existingHash)) == keccak256(bytes(_confirmedHash)),
+                "Hash mismatch: submitted hash does not match anchored hash"
+            );
+        } else {
+            // First verification: anchor the hash
+            verifiedDocHashes[_user][_docType] = _confirmedHash;
+            verifiedBy[_user][_docType] = msg.sender;
+        }
+
+        // Record access history
+        userEntityAccess[_user].push(entityRegistry[msg.sender].entityType);
+        emit DocumentVerified(_user, msg.sender, _docType);
+    }
+
+    // ─── Hash Check (For New Institutions) ──────────────────────────────────
+
+    /**
+     * @notice A second (or subsequent) institution checks if the hash it received from a user
+     *         matches the hash anchored on-chain by a previous verifier.
+     * @param _user Wallet address of the user
+     * @param _submittedHash Hash the institution received from the user to verify
+     * @param _docType Document type string, e.g. "Aadhar Card"
+     * @param _claimedType The EntityType of the calling institution
+     */
+    function checkDocumentHash(
+        address _user,
+        string memory _submittedHash,
+        string memory _docType,
+        EntityType _claimedType
+    ) public onlyRegisteredEntity returns (bool) {
+        // Ensure the calling entity's registered type matches their claim
+        require(
+            entityRegistry[msg.sender].entityType == _claimedType,
+            "Entity type mismatch"
+        );
+
+        string memory anchoredHash = verifiedDocHashes[_user][_docType];
+        require(bytes(anchoredHash).length > 0, "No verified hash found for this document type");
+
+        bool hashMatch = keccak256(bytes(anchoredHash)) == keccak256(bytes(_submittedHash));
+        require(hashMatch, "Hash mismatch: document not authentic");
+
+        userEntityAccess[_user].push(_claimedType);
+        emit DocumentCheckPassed(_user, msg.sender, _docType, _claimedType);
+        return true;
+    }
+
+    // ─── Read Functions ──────────────────────────────────────────────────────
+
+    function getDocumentHash(address _user, string memory _docType) public view returns (string memory) {
+        return verifiedDocHashes[_user][_docType];
+    }
+
+    function isDocumentVerified(address _user, string memory _docType) public view returns (bool) {
+        return bytes(verifiedDocHashes[_user][_docType]).length > 0;
+    }
+
+    function checkVerification(address _user) public view returns (bool) {
+        // User is considered "verified" if they have at least one anchored doc hash
+        return users[_user].isRegistered;
+    }
+
+    function getUserAccessHistory(address _user) public view returns (EntityType[] memory) {
+        return userEntityAccess[_user];
+    }
+
+    function getUserDetails(address _user) public view returns (
+        string memory name,
+        bool isRegistered
+    ) {
+        User memory u = users[_user];
+        return (u.name, u.isRegistered);
+    }
+
+    // ─── Admin ───────────────────────────────────────────────────────────────
+
+    function revokeUser(address _user) public onlyAdmin {
+        users[_user].isRegistered = false;
+        emit UserRevoked(_user);
+    }
+}

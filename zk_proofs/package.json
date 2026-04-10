@@ -1,0 +1,15 @@
+{
+  "name": "kyc-zk-proofs",
+  "version": "1.0.0",
+  "description": "ZK proof circuits and scripts for the Decentralized KYC system",
+  "scripts": {
+    "compile": "bash scripts/compile_circuits.sh",
+    "generate": "node scripts/generate_proof.js",
+    "verify": "node scripts/verify_proof.js"
+  },
+  "dependencies": {
+    "circomlib": "^2.0.5",
+    "circomlibjs": "^0.1.7",
+    "snarkjs": "^0.7.4"
+  }
+}
