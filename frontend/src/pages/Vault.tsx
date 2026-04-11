@@ -27,7 +27,7 @@ const Vault: React.FC = () => {
     const fetchVault = async () => {
         setLoading(true);
         try {
-            const res = await fetch('http://localhost:5000/api/vault', {
+            const res = await fetch('http://localhost:5050/api/vault', {
                 headers: { 'x-auth-token': token || '' }
             });
             const data = await res.json();
@@ -42,7 +42,7 @@ const Vault: React.FC = () => {
     const handleDelete = async (fileHash: string) => {
         if (!window.confirm("Delete this document? This will remove the local record and IPFS link.")) return;
         try {
-            const res = await fetch(`http://localhost:5000/api/vault/${fileHash}`, {
+            const res = await fetch(`http://localhost:5050/api/vault/${fileHash}`, {
                 method: 'DELETE',
                 headers: { 'x-auth-token': token || '' }
             });
@@ -57,7 +57,7 @@ const Vault: React.FC = () => {
         const entity = sharingWith[fileHash];
         if (!entity || !token) return;
         try {
-            const res = await fetch('http://localhost:5000/api/vault/share', {
+            const res = await fetch('http://localhost:5050/api/vault/share', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
                 body: JSON.stringify({ fileHash, entityName: entity })

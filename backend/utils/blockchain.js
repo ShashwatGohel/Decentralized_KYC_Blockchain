@@ -9,6 +9,10 @@ const RPC_URL = process.env.RPC_URL || "http://127.0.0.1:8545";
 let provider;
 try {
     provider = new ethers.JsonRpcProvider(RPC_URL);
+    // Explicitly handle provider errors to prevent uncaught exceptions during polling
+    provider.on("error", (err) => {
+        // Silent or minimal log for network issues
+    });
 } catch (e) {
     console.error("Critical: Failed to initialize Blockchain Provider:", e.message);
 }

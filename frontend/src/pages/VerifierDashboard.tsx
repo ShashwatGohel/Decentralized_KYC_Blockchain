@@ -21,7 +21,7 @@ const VerifierDashboard: React.FC = () => {
 
     const fetchPendingRequests = async () => {
         try {
-            const res = await fetch('http://localhost:5000/api/verify/pending', {
+            const res = await fetch('http://localhost:5050/api/verify/pending', {
                 headers: { 'x-auth-token': token || '' }
             });
             const data = await res.json();
@@ -44,7 +44,7 @@ const VerifierDashboard: React.FC = () => {
             await tx.wait();
             setStatus({ type: 'success', msg: `Identity successfully verified for ${address.slice(0, 10)}...` });
             
-            await fetch('http://localhost:5000/api/kyc/verify-sync', {
+            await fetch('http://localhost:5050/api/kyc/verify-sync', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-auth-token': token || '' },
                 body: JSON.stringify({ userWallet: address, docHash: hash })
@@ -53,7 +53,11 @@ const VerifierDashboard: React.FC = () => {
             fetchPendingRequests();
         } catch (err: any) {
             console.error(err);
-            setStatus({ type: 'error', msg: `Verification Failed: ${err.reason || err.message}` });
+            if (err.code === 'ACTION_REJECTED' || err.message.includes('rejected')) {
+                setStatus({ type: 'error', msg: 'Transaction was rejected in MetaMask.' });
+            } else {
+                setStatus({ type: 'error', msg: `Verification Failed: ${err.reason || err.message}` });
+            }
         } finally {
             setLoading(false);
         }

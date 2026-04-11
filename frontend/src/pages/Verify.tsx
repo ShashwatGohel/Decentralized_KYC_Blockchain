@@ -56,7 +56,7 @@ const Verify: React.FC = () => {
             });
 
             // 1. Generate Proof via Backend
-            const res = await fetch('http://localhost:5000/api/proof/generate', {
+            const res = await fetch('http://localhost:5050/api/proof/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
                 body: JSON.stringify({ circuit_type: circuitId, inputs: payload })

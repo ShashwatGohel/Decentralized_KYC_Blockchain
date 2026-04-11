@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Network, Activity, Users, Download, Search, Server, Cpu } from 'lucide-react';
 import io from 'socket.io-client';
 
-const socket: any = io('http://localhost:5000');
+const socket: any = io('http://localhost:5050');
 
 const PublicLedger: React.FC = () => {
     const [events, setEvents] = useState<any[]>([]);

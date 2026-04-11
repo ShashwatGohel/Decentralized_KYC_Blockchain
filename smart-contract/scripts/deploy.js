@@ -16,8 +16,13 @@ async function main() {
   console.log(`ZKVerifier deployed to: ${zkVerifierAddress}`);
 
   // 2. Deploy MultiSigWallet
-  // 2 of 3 admins
-  const owners = [deployer.address, admin2.address, admin3.address];
+  // BhupendraPatel added as an owner for easier testing
+  const owners = [
+    "0x0af9a4a27e69b29bd448d7028181f655f64b8ca0", // New Admin Wallet
+    admin2.address, 
+    admin3.address, 
+    "0xcac522eecdbae2d735a7ce2de43bbac477593f7f" // BhupendraPatel
+  ];
   const requiredConfirmations = 2;
   console.log("Deploying MultiSigWallet with owners:", owners);
   const MultiSigWallet = await hre.ethers.getContractFactory("MultiSigWallet");

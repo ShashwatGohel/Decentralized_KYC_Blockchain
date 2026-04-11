@@ -40,7 +40,15 @@ const Home: React.FC = () => {
           Your Decentralized ID is {account ? <span style={{ color: 'var(--primary)', fontWeight: 700 }}>Active</span> : <span style={{ color: 'var(--warning)', fontWeight: 700 }}>Syncing...</span>}.
         </p>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem' }}>
-          <button onClick={() => navigate(user?.role === 'entity' ? '/entity' : '/user')} className="btn btn-primary" style={{ padding: '1rem 3rem', fontSize: '1.1rem' }}>
+          <button 
+            onClick={() => {
+              if (user?.role === 'admin') navigate('/admin');
+              else if (user?.role === 'entity') navigate('/entity');
+              else navigate('/user');
+            }} 
+            className="btn btn-primary" 
+            style={{ padding: '1rem 3rem', fontSize: '1.1rem' }}
+          >
             Go to Dashboard
           </button>
           <button onClick={() => navigate('/ledger')} className="btn btn-ghost" style={{ padding: '1rem 3rem', fontSize: '1.1rem' }}>

@@ -50,7 +50,7 @@ const UserDashboard: React.FC = () => {
 
     const fetchApplications = async () => {
         try {
-            const res = await fetch('http://localhost:5000/api/verify/my-applications', {
+            const res = await fetch('http://localhost:5050/api/verify/my-applications', {
                 headers: { 'x-auth-token': token || '' }
             });
             const data = await res.json();
@@ -62,7 +62,7 @@ const UserDashboard: React.FC = () => {
 
     const fetchInstitutions = async () => {
         try {
-            const res = await fetch('http://localhost:5000/api/public/search?q= '); 
+            const res = await fetch('http://localhost:5050/api/public/search?q= '); 
             const data = await res.json();
             if (res.ok) setInstitutions(data.filter((d: any) => d.role === 'entity'));
         } catch (err) {
@@ -73,13 +73,13 @@ const UserDashboard: React.FC = () => {
     const fetchDashboardStats = async () => {
         if (!token) return;
         try {
-            const reqRes = await fetch('http://localhost:5000/api/entity/user-requests', {
+            const reqRes = await fetch('http://localhost:5050/api/entity/user-requests', {
                 headers: { 'x-auth-token': token }
             });
             const reqData = await reqRes.json();
             if (reqRes.ok) setAccessRequests(reqData);
 
-            const vaultRes = await fetch('http://localhost:5000/api/vault', {
+            const vaultRes = await fetch('http://localhost:5050/api/vault', {
                 headers: { 'x-auth-token': token }
             });
             const vaultData = await vaultRes.json();

@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useBlockchain } from '../context/BlockchainContext';
+import { useAuth } from '../context/AuthContext';
 import { Users, Building2, FileText, Ban, CheckCircle, ShieldAlert } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
-    const { isAdmin, account } = useBlockchain();
+    const { isAdmin, account, multiSigContract, kycContract } = useBlockchain();
+    const { user } = useAuth();
     
     const [stats, setStats] = useState({ users: 0, entities: 0, proofs: 0, bans: 0 });
     const [entities, setEntities] = useState<any[]>([]);
     const [proposals, setProposals] = useState<any[]>([]);
     const [bans, setBans] = useState<any[]>([]);
+    const [requiredSigs, setRequiredSigs] = useState(2);
     
     const [formData, setFormData] = useState({
         entity_name: '',
@@ -21,38 +24,78 @@ const AdminDashboard: React.FC = () => {
     const [message, setMessage] = useState('');
 
     useEffect(() => {
-        if (isAdmin) {
+        if ((isAdmin || user?.role === 'admin') && multiSigContract && kycContract) {
+            console.log("Admin Dashboard detected: Fetching data...");
             fetchStats();
             fetchEntities();
             fetchProposals();
             fetchBans();
+            
+            multiSigContract.numConfirmationsRequired().then((res: any) => {
+                setRequiredSigs(Number(res));
+            }).catch(console.error);
         }
-    }, [isAdmin]);
+    }, [isAdmin, user?.role, multiSigContract, kycContract]);
 
     const fetchStats = async () => {
         try {
-            const res = await fetch('http://localhost:5000/api/admin/system-stats');
+            const res = await fetch('http://localhost:5050/api/admin/system-stats');
             if (res.ok) setStats(await res.json());
         } catch (e) {}
     };
 
     const fetchEntities = async () => {
         try {
-            const res = await fetch('http://localhost:5000/api/admin/entities');
+            const res = await fetch('http://localhost:5050/api/admin/entities');
             if (res.ok) setEntities(await res.json());
         } catch (e) {}
     };
 
     const fetchProposals = async () => {
+        console.log("Checking contracts:", { 
+            hasMultiSig: !!multiSigContract, 
+            hasKyc: !!kycContract,
+            account: account
+        });
+        if (!multiSigContract || !kycContract) return;
         try {
-            const res = await fetch('http://localhost:5000/api/admin/pending-proposals');
-            if (res.ok) setProposals(await res.json());
-        } catch (e) {}
+            const count = await multiSigContract.getTransactionCount();
+            console.log("On-chain Transaction Count:", count.toString());
+            const txs = [];
+            for (let i = 0; i < Number(count); i++) {
+                const tx = await multiSigContract.getTransaction(i);
+                const isExecuted = tx.executed !== undefined ? tx.executed : tx[3];
+                if (!isExecuted) {
+                    // Check if current user already confirmed
+                    const isConf = await multiSigContract.isConfirmed(i, account);
+                    const toAddress = tx.to || tx[0];
+                    const confirmations = tx.numConfirmations !== undefined ? tx.numConfirmations : tx[4];
+                    const txData = tx.data || tx[2];
+                    
+                    console.log(`Transaction ${i}: to=${toAddress}, executed=${isExecuted}, confirmations=${confirmations}`);
+                    
+                    txs.push({
+                        proposal_id: i.toString(),
+                        to: toAddress,
+                        action_type: "Entity Registration",
+                        proposed_by: "MultiSig Owner",
+                        required_sigs: requiredSigs,
+                        approvals: Array(Number(confirmations)).fill('sig'),
+                        alreadyConfirmed: isConf,
+                        data: txData
+                    });
+                }
+            }
+            console.log("Final Fetch Results:", txs);
+            setProposals(txs);
+        } catch (e) {
+            console.error("CRITICAL: Error fetching proposals", e);
+        }
     };
 
     const fetchBans = async () => {
         try {
-            const res = await fetch('http://localhost:5000/api/ban/proposals');
+            const res = await fetch('http://localhost:5050/api/ban/proposals');
             if (res.ok) {
                 const data = await res.json();
                 setBans(data.filter((b: any) => b.status === 'executed'));
@@ -62,44 +105,76 @@ const AdminDashboard: React.FC = () => {
 
     const handleRegisterSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!multiSigContract || !kycContract) return;
         setLoading(true);
         setMessage('');
         try {
-            const res = await fetch('http://localhost:5000/api/admin/register-entity', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...formData, admin_wallet: account })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                setMessage(`Proposal created successfully! Proposal ID: ${data.proposal_id}`);
-                setFormData({ entity_name: '', entity_type: 'Bank', wallet_address: '', kyc_agency: false });
-                fetchProposals();
-            } else {
-                throw new Error(data.message);
-            }
+            let typeEnum = 1;
+            if (formData.entity_type === 'Broker') typeEnum = 2;
+            else if (formData.entity_type === 'Insurance') typeEnum = 3;
+            else if (formData.entity_type === 'Investment') typeEnum = 4;
+
+            const endpoint = formData.kyc_agency ? "agency" : "standard";
+            
+            // kycContract target might be string address or object
+            const targetAddress = typeof kycContract.target === 'string' ? kycContract.target : await kycContract.getAddress();
+
+            const data = kycContract.interface.encodeFunctionData("registerEntity", [
+                formData.wallet_address,
+                typeEnum,
+                formData.entity_name,
+                endpoint
+            ]);
+
+            const tx = await multiSigContract.submitTransaction(
+                targetAddress,
+                0,
+                data
+            );
+            setMessage("Awaiting transaction confirmation...");
+            await tx.wait();
+            setMessage(`Proposal submitted successfully! (TxHash: ${tx.hash})`);
+            setFormData({ entity_name: '', entity_type: 'Bank', wallet_address: '', kyc_agency: false });
+            fetchProposals();
         } catch (err: any) {
-            setMessage(`Error: ${err.message}`);
+            console.error("Submission Error", err);
+            setMessage(`Error: ${err.reason || err.message}`);
         } finally {
             setLoading(false);
         }
     };
 
     const approveProposal = async (proposal_id: string) => {
+        if (!multiSigContract) return;
         try {
-            const res = await fetch('http://localhost:5000/api/admin/approve-proposal', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ proposal_id, admin_wallet: account })
-            });
-            if (res.ok) {
-                fetchProposals();
-                fetchEntities();
-            }
-        } catch (e) {}
+            const tx = await multiSigContract.confirmTransaction(Number(proposal_id));
+            setMessage("Confirming transaction...");
+            await tx.wait();
+            setMessage("Transaction confirmed.");
+            fetchProposals();
+            fetchEntities();
+        } catch (e: any) {
+            console.error("Approve Error", e);
+            setMessage(`Error confirming: ${e.reason || e.message}`);
+        }
     };
 
-    if (!isAdmin) {
+    const executeProposal = async (proposal_id: string) => {
+        if (!multiSigContract) return;
+        try {
+            const tx = await multiSigContract.executeTransaction(Number(proposal_id));
+            setMessage("Executing transaction...");
+            await tx.wait();
+            setMessage("Transaction executed successfully.");
+            fetchProposals();
+            fetchEntities();
+        } catch (e: any) {
+            console.error("Execute Error", e);
+            setMessage(`Error executing: ${e.reason || e.message}`);
+        }
+    };
+
+    if (!isAdmin && user?.role !== 'admin') {
         return (
             <div className="fade-in" style={{ padding: '6rem 3rem', textAlign: 'center', marginTop: '4rem' }}>
                 <div style={{ marginBottom: '1.5rem', color: 'var(--error)' }}><ShieldAlert size={64} /></div>
@@ -180,11 +255,21 @@ const AdminDashboard: React.FC = () => {
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                         <div style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.1)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
-                                            {prop.approvals.length} of {prop.required_sigs}
+                                            {prop.approvals.length} of {requiredSigs}
                                         </div>
-                                        <button onClick={() => approveProposal(prop.proposal_id)} className="btn btn-outline" style={{ fontSize: '0.8rem', padding: '0.5rem 1rem' }}>
-                                            Approve
-                                        </button>
+                                        {prop.approvals.length < requiredSigs && !prop.alreadyConfirmed && (
+                                            <button onClick={() => approveProposal(prop.proposal_id)} className="btn btn-outline" style={{ fontSize: '0.8rem', padding: '0.5rem 1rem', border: '1px solid var(--accent)', background: 'transparent', color: 'var(--accent)', borderRadius: '8px', cursor: 'pointer' }}>
+                                                Approve
+                                            </button>
+                                        )}
+                                        {prop.approvals.length < requiredSigs && prop.alreadyConfirmed && (
+                                            <span style={{ fontSize: '0.8rem', color: 'var(--success)' }}>Voted</span>
+                                        )}
+                                        {prop.approvals.length >= requiredSigs && (
+                                            <button onClick={() => executeProposal(prop.proposal_id)} className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '0.5rem 1rem', background: 'var(--primary)', color: '#000', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                                Execute
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             ))

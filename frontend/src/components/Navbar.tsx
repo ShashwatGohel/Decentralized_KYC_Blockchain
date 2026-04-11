@@ -48,7 +48,7 @@ const Navbar: React.FC = () => {
               {(isVerifier || isGovernment) && (
                 <Link to="/verifier" className={`nav-link ${isActive('/verifier') ? 'active' : ''}`}>Verification Engine</Link>
               )}
-              {isAdmin && (
+              {(isAdmin || user?.role === 'admin') && (
                 <Link to="/admin" className={`nav-link ${isActive('/admin') ? 'active' : ''}`}>Admin</Link>
               )}
             </>

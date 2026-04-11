@@ -58,3 +58,16 @@ app.use((err, req, res, next) => {
     console.error('CRASH DETECTED:', err.stack);
     res.status(500).json({ message: 'Internal Server Error', error: err.message });
 });
+
+process.on('uncaughtException', (err) => {
+    console.error('UNCAUGHT EXCEPTION:', err);
+    if (err.code === 'EADDRINUSE') {
+        process.exit(1);
+    }
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('UNHANDLED REJECTION:', reason);
+});
+
+

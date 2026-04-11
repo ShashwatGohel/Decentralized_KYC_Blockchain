@@ -22,7 +22,7 @@ const EntityDashboard: React.FC = () => {
 
     const fetchUsers = async () => {
         try {
-            const res = await fetch('http://localhost:5000/api/entity/users', {
+            const res = await fetch('http://localhost:5050/api/entity/users', {
                 headers: { 'x-auth-token': token || '' }
             });
             if (res.ok) setUsers(await res.json());
@@ -33,9 +33,9 @@ const EntityDashboard: React.FC = () => {
         setLoading(true);
         try {
             const [userRes, accessRes, proofRes] = await Promise.all([
-                fetch(`http://localhost:5000/api/entity/users/${userId}`, { headers: { 'x-auth-token': token || '' }}),
-                fetch(`http://localhost:5000/api/entity/users/${userId}/access`, { headers: { 'x-auth-token': token || '' }}),
-                fetch(`http://localhost:5000/api/entity/users/${userId}/proofs`, { headers: { 'x-auth-token': token || '' }})
+                fetch(`http://localhost:5050/api/entity/users/${userId}`, { headers: { 'x-auth-token': token || '' }}),
+                fetch(`http://localhost:5050/api/entity/users/${userId}/access`, { headers: { 'x-auth-token': token || '' }}),
+                fetch(`http://localhost:5050/api/entity/users/${userId}/proofs`, { headers: { 'x-auth-token': token || '' }})
             ]);
             
             if (userRes.ok) {
@@ -56,7 +56,7 @@ const EntityDashboard: React.FC = () => {
     const handleBanSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const res = await fetch('http://localhost:5000/api/ban/initiate', {
+            const res = await fetch('http://localhost:5050/api/ban/initiate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-auth-token': token || '' },
                 body: JSON.stringify({

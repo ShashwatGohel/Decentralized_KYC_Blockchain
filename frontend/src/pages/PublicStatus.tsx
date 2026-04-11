@@ -23,7 +23,7 @@ const PublicStatus: React.FC = () => {
     const performNameSearch = async (name: string) => {
         setStatus('loading');
         try {
-            const res = await fetch(`http://localhost:5000/api/public/search?q=${encodeURIComponent(name)}`);
+            const res = await fetch(`http://localhost:5050/api/public/search?q=${encodeURIComponent(name)}`);
             const data = await res.json();
             setSearchResults(data);
             setStatus('results');
@@ -36,7 +36,7 @@ const PublicStatus: React.FC = () => {
         setStatus('loading');
         try {
             // Query backend for KYC status instead of contract
-            const res = await fetch(`http://localhost:5000/api/public/search?q=${encodeURIComponent(address)}`);
+            const res = await fetch(`http://localhost:5050/api/public/search?q=${encodeURIComponent(address)}`);
             const data = await res.json();
             
             if (data && data.length > 0) {
