@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Users, Building2, FileText, Ban, CheckCircle, ShieldAlert } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
-    const { isAdmin, account, multiSigContract, kycContract } = useBlockchain();
+    const { isAdmin, account, multiSigContract, kycContract, isCorrectNetwork } = useBlockchain();
     const { user } = useAuth();
     
     const [stats, setStats] = useState({ users: 0, entities: 0, proofs: 0, bans: 0 });
@@ -12,6 +12,7 @@ const AdminDashboard: React.FC = () => {
     const [proposals, setProposals] = useState<any[]>([]);
     const [bans, setBans] = useState<any[]>([]);
     const [requiredSigs, setRequiredSigs] = useState(2);
+    const [connDebug, setConnDebug] = useState({ chainId: 'Unknown', address: 'Unknown' });
     
     const [formData, setFormData] = useState({
         entity_name: '',
@@ -23,9 +24,15 @@ const AdminDashboard: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
 
+    const [manualVerifyData, setManualVerifyData] = useState({
+        user_wallet: '',
+        doc_type: 'Identity Certificate',
+        doc_hash: ''
+    });
+
     useEffect(() => {
-        if ((isAdmin || user?.role === 'admin') && multiSigContract && kycContract) {
-            console.log("Admin Dashboard detected: Fetching data...");
+        if ((isAdmin || user?.role === 'admin' || user?.role === 'government') && multiSigContract && kycContract && isCorrectNetwork) {
+            console.log("Admin Dashboard detected: Fetching data for account:", account);
             fetchStats();
             fetchEntities();
             fetchProposals();
@@ -33,9 +40,21 @@ const AdminDashboard: React.FC = () => {
             
             multiSigContract.numConfirmationsRequired().then((res: any) => {
                 setRequiredSigs(Number(res));
-            }).catch(console.error);
+            }).catch(e => console.error("Error fetching required sigs:", e));
+
+            // Diagnostic info
+            (async () => {
+                try {
+                    const network = await multiSigContract.runner?.provider?.getNetwork();
+                    const addr = await multiSigContract.getAddress();
+                    setConnDebug({ 
+                        chainId: network?.chainId.toString() || 'ERR', 
+                        address: addr 
+                    });
+                } catch (e) {}
+            })();
         }
-    }, [isAdmin, user?.role, multiSigContract, kycContract]);
+    }, [isAdmin, user?.role, multiSigContract, kycContract, account, isCorrectNetwork]);
 
     const fetchStats = async () => {
         try {
@@ -52,44 +71,60 @@ const AdminDashboard: React.FC = () => {
     };
 
     const fetchProposals = async () => {
-        console.log("Checking contracts:", { 
-            hasMultiSig: !!multiSigContract, 
-            hasKyc: !!kycContract,
-            account: account
-        });
-        if (!multiSigContract || !kycContract) return;
+        if (!multiSigContract || !kycContract || !isCorrectNetwork) {
+            console.log("fetchProposals skipped: missing contracts or wrong network", { multi: !!multiSigContract, kyc: !!kycContract, correctNetwork: isCorrectNetwork });
+            return;
+        }
         try {
-            const count = await multiSigContract.getTransactionCount();
-            console.log("On-chain Transaction Count:", count.toString());
+            const countBig = await multiSigContract.getTransactionCount();
+            const count = Number(countBig);
+            console.log("On-chain Transaction Count:", count);
+            
             const txs = [];
-            for (let i = 0; i < Number(count); i++) {
-                const tx = await multiSigContract.getTransaction(i);
-                const isExecuted = tx.executed !== undefined ? tx.executed : tx[3];
-                if (!isExecuted) {
-                    // Check if current user already confirmed
-                    const isConf = await multiSigContract.isConfirmed(i, account);
-                    const toAddress = tx.to || tx[0];
-                    const confirmations = tx.numConfirmations !== undefined ? tx.numConfirmations : tx[4];
-                    const txData = tx.data || tx[2];
+            for (let i = 0; i < count; i++) {
+                try {
+                    const tx = await multiSigContract.getTransaction(i);
+                    console.log(`Transaction ${i} fetched:`, tx);
                     
-                    console.log(`Transaction ${i}: to=${toAddress}, executed=${isExecuted}, confirmations=${confirmations}`);
+                    const isExecuted = tx.executed !== undefined ? tx.executed : (tx[3] !== undefined ? tx[3] : false);
                     
-                    txs.push({
-                        proposal_id: i.toString(),
-                        to: toAddress,
-                        action_type: "Entity Registration",
-                        proposed_by: "MultiSig Owner",
-                        required_sigs: requiredSigs,
-                        approvals: Array(Number(confirmations)).fill('sig'),
-                        alreadyConfirmed: isConf,
-                        data: txData
-                    });
+                    if (!isExecuted) {
+                        let isConf = false;
+                        if (account) {
+                            try {
+                                isConf = await multiSigContract.isConfirmed(i, account);
+                            } catch (err) {
+                                console.warn(`Could not check confirmation status for tx ${i}`, err);
+                            }
+                        }
+                        
+                        const toAddress = tx.to || tx[0];
+                        const confirmations = tx.numConfirmations !== undefined ? tx.numConfirmations : (tx[4] !== undefined ? tx[4] : 0);
+                        const txData = tx.data || tx[2];
+                        
+                        console.log(`Adding non-executed proposal ${i}: to=${toAddress}, confirmations=${confirmations}`);
+                        
+                        txs.push({
+                            proposal_id: i.toString(),
+                            to: toAddress,
+                            action_type: "Entity Registration",
+                            proposed_by: "MultiSig Owner",
+                            required_sigs: requiredSigs,
+                            approvals: Array(Number(confirmations)).fill('sig'),
+                            alreadyConfirmed: isConf,
+                            data: txData
+                        });
+                    } else {
+                        console.log(`Transaction ${i} skipped: already executed`);
+                    }
+                } catch (txErr) {
+                    console.error(`Error fetching individual transaction ${i}:`, txErr);
                 }
             }
-            console.log("Final Fetch Results:", txs);
+            console.log("Setting proposals state with count:", txs.length);
             setProposals(txs);
         } catch (e) {
-            console.error("CRITICAL: Error fetching proposals", e);
+            console.error("CRITICAL: Error in fetchProposals", e);
         }
     };
 
@@ -144,6 +179,38 @@ const AdminDashboard: React.FC = () => {
         }
     };
 
+    const handleManualVerifySubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!multiSigContract || !kycContract) return;
+        setLoading(true);
+        setMessage('');
+        try {
+            const targetAddress = typeof kycContract.target === 'string' ? kycContract.target : await kycContract.getAddress();
+
+            const data = kycContract.interface.encodeFunctionData("verifyDocument", [
+                manualVerifyData.user_wallet,
+                manualVerifyData.doc_type,
+                manualVerifyData.doc_hash
+            ]);
+
+            const tx = await multiSigContract.submitTransaction(
+                targetAddress,
+                0,
+                data
+            );
+            setMessage("Awaiting transaction confirmation...");
+            await tx.wait();
+            setMessage(`Verification proposal submitted! (TxHash: ${tx.hash})`);
+            setManualVerifyData({ user_wallet: '', doc_type: 'Identity Certificate', doc_hash: '' });
+            fetchProposals();
+        } catch (err: any) {
+            console.error("Verification Proposal Error", err);
+            setMessage(`Error: ${err.reason || err.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const approveProposal = async (proposal_id: string) => {
         if (!multiSigContract) return;
         try {
@@ -160,12 +227,42 @@ const AdminDashboard: React.FC = () => {
     };
 
     const executeProposal = async (proposal_id: string) => {
-        if (!multiSigContract) return;
+        if (!multiSigContract || !kycContract) return;
         try {
+            const proposal = proposals.find(p => p.proposal_id === proposal_id);
+            
             const tx = await multiSigContract.executeTransaction(Number(proposal_id));
             setMessage("Executing transaction...");
             await tx.wait();
             setMessage("Transaction executed successfully.");
+
+            // Sync with backend if it was an entity registration
+            if (proposal && proposal.data) {
+                try {
+                    const decoded = kycContract.interface.decodeFunctionData("registerEntity", proposal.data);
+                    const walletAddress = decoded[0];
+                    console.log("Syncing entity with backend:", walletAddress);
+                    
+                    const syncRes = await fetch('http://localhost:5050/api/admin/sync-entity', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'x-auth-token': localStorage.getItem('token') || '' 
+                        },
+                        body: JSON.stringify({ walletAddress })
+                    });
+                    
+                    if (!syncRes.ok) {
+                        const errData = await syncRes.json();
+                        console.error("Sync failed:", errData.message);
+                    } else {
+                        console.log("Backend synced successfully.");
+                    }
+                } catch (syncErr) {
+                    console.warn("Backend sync skipped or failed (might not be a registration tx):", syncErr);
+                }
+            }
+
             fetchProposals();
             fetchEntities();
         } catch (e: any) {
@@ -174,7 +271,7 @@ const AdminDashboard: React.FC = () => {
         }
     };
 
-    if (!isAdmin && user?.role !== 'admin') {
+    if (!isAdmin && user?.role !== 'admin' && user?.role !== 'government') {
         return (
             <div className="fade-in" style={{ padding: '6rem 3rem', textAlign: 'center', marginTop: '4rem' }}>
                 <div style={{ marginBottom: '1.5rem', color: 'var(--error)' }}><ShieldAlert size={64} /></div>
@@ -206,6 +303,12 @@ const AdminDashboard: React.FC = () => {
                     <Ban size={32} color="var(--error)" />
                     <div><div style={{ fontSize: '2rem', fontWeight: 700 }}>{stats.bans}</div><div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>ACTIVE BANS</div></div>
                 </div>
+            </div>
+
+            <div className="glass" style={{ padding: '1rem 2rem', marginBottom: '2rem', fontSize: '0.8rem', display: 'flex', gap: '2rem', color: 'var(--text-muted)' }}>
+                <div><strong>Contract:</strong> {connDebug.address}</div>
+                <div><strong>Chain ID:</strong> {connDebug.chainId}</div>
+                <div><strong>User Wallet:</strong> {account || 'Not Connected'}</div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '3rem' }}>
@@ -249,7 +352,11 @@ const AdminDashboard: React.FC = () => {
                             proposals.map(prop => (
                                 <div key={prop.proposal_id} style={{ background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <div>
-                                        <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{prop.action_type}</div>
+                                        <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                                            {prop.data && kycContract && prop.data.startsWith(kycContract.interface.getFunction("verifyDocument")?.selector) 
+                                                ? "Document Verification" 
+                                                : prop.action_type}
+                                        </div>
                                         <div style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--text-muted)' }}>{prop.proposal_id}</div>
                                         <div style={{ fontSize: '0.8rem', marginTop: '0.3rem' }}>By: {prop.proposed_by.substring(0,6)}...</div>
                                     </div>
@@ -275,6 +382,54 @@ const AdminDashboard: React.FC = () => {
                             ))
                         )}
                     </div>
+                </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem', marginBottom: '3rem' }}>
+                {/* 3. Manual Document Verification (Anchor) */}
+                <div className="glass" style={{ padding: '2rem' }}>
+                    <h3 style={{ marginBottom: '1.5rem', borderLeft: '4px solid var(--success)', paddingLeft: '1rem' }}>Manual Document Verification (On-Chain Anchor)</h3>
+                    <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                        As a government official, use this form to manually verify a citizen's physical documents and anchor their cryptographic hash to the blockchain. 
+                        This action requires MultiSig consensus.
+                    </p>
+                    <form onSubmit={handleManualVerifySubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem', alignItems: 'end' }}>
+                        <div>
+                            <label>User Wallet Address</label>
+                            <input 
+                                type="text" 
+                                value={manualVerifyData.user_wallet} 
+                                onChange={e => setManualVerifyData({...manualVerifyData, user_wallet: e.target.value})} 
+                                placeholder="0x..." 
+                                required 
+                            />
+                        </div>
+                        <div>
+                            <label>Document Type</label>
+                            <input 
+                                type="text" 
+                                value={manualVerifyData.doc_type} 
+                                onChange={e => setManualVerifyData({...manualVerifyData, doc_type: e.target.value})} 
+                                placeholder="e.g. Aadhar Card" 
+                                required 
+                            />
+                        </div>
+                        <div>
+                            <label>Document Hash (Keccak256)</label>
+                            <input 
+                                type="text" 
+                                value={manualVerifyData.doc_hash} 
+                                onChange={e => setManualVerifyData({...manualVerifyData, doc_hash: e.target.value})} 
+                                placeholder="0x..." 
+                                required 
+                            />
+                        </div>
+                        <div style={{ gridColumn: 'span 3' }}>
+                            <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%', background: 'var(--success)', color: '#000' }}>
+                                {loading ? 'Submitting proposal...' : 'Propose On-Chain Verification'}
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
 

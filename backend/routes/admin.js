@@ -65,8 +65,45 @@ router.get('/entities', async (req, res) => {
 
 // The pending proposals will now be fetched directly from the smart contract by the frontend,
 // but we'll add an empty endpoint just in case the frontend relies on it as a fallback.
-router.get('/pending-proposals', async (req, res) => {
-    res.json([]);
+// @route   POST api/admin/sync-entity
+// @desc    Sync on-chain entity registration to database
+router.post('/sync-entity', auth, async (req, res) => {
+    try {
+        const { walletAddress } = req.body;
+        if (!walletAddress) return res.status(400).json({ message: 'Wallet address is required' });
+
+        const { kycContract } = require('../utils/blockchain');
+        if (!kycContract) return res.status(500).json({ message: 'Blockchain connection not available' });
+
+        // Check on-chain status
+        const onChain = await kycContract.entityRegistry(walletAddress);
+        if (!onChain.isActive) {
+            return res.status(400).json({ message: 'Entity is not active on-chain' });
+        }
+
+        // Update database
+        const updatedUser = await User.findOneAndUpdate(
+            { walletAddress: walletAddress.toLowerCase() },
+            { 
+                entityName: onChain.name,
+                role: 'entity',
+                registrationStatus: 'active',
+                onChainType: Number(onChain.entityType),
+                apiEndpoint: onChain.apiEndpoint,
+                // These are defaults if the user didn't exist
+                $setOnInsert: {
+                    username: `entity_${walletAddress.slice(2, 8)}`,
+                    password: 'password123' 
+                }
+            },
+            { upsert: true, new: true }
+        );
+
+        res.json({ message: 'Sync successful', user: updatedUser });
+    } catch (err) {
+        console.error("Sync Error:", err);
+        res.status(500).send('Server Error');
+    }
 });
 
 module.exports = router;

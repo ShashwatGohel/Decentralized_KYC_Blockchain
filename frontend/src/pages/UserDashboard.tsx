@@ -9,7 +9,7 @@ const UserDashboard: React.FC = () => {
     const [institutions, setInstitutions] = useState<any[]>([]);
     const [selectedEntity, setSelectedEntity] = useState('');
     const { token, user } = useAuth();
-    const { account, kycContract } = useBlockchain();
+    const { account, kycContract, multiSigContract } = useBlockchain();
     const [accessRequests, setAccessRequests] = useState<any[]>([]);
     const [history, setHistory] = useState<any[]>([]);
 
@@ -35,13 +35,57 @@ const UserDashboard: React.FC = () => {
     }, [account, kycContract]);
 
     const checkOnChainStatus = async () => {
-        if (!account || !kycContract) return;
+        if (!account || !kycContract || !multiSigContract) return;
         try {
             const onChainUser = await kycContract.users(account);
             setIsRegistered(onChainUser.isRegistered);
             
+            // --- Live Ledger Implementation ---
+            // 1. Fetch Verification Logs (Explicitly stored on-chain)
             const govHistory = await kycContract.getVerificationHistory(account);
-            setHistory(govHistory);
+            const formattedGov = govHistory.map((log: any) => ({
+                title: 'Data Verified',
+                entity: log.entityName,
+                timestamp: Number(log.timestamp),
+                type: 'verification'
+            }));
+
+            // 2. Fetch Events (Live Log Mining)
+            // Get current and past blocks (filtering from block 0 for demo)
+            const [accessEvents, regEvents, multiSigExecEvents] = await Promise.all([
+                kycContract.queryFilter(kycContract.filters.AccessGranted(account, null), 0, 'latest'),
+                kycContract.queryFilter(kycContract.filters.EntityRegistered(null, null, null), 0, 'latest'),
+                multiSigContract.queryFilter(multiSigContract.filters.ExecuteTransaction(null, null), 0, 'latest')
+            ]);
+
+            const dynamicHistory = [
+                ...formattedGov,
+                ...accessEvents.map((evt: any) => ({
+                    title: 'Access Granted',
+                    entity: 'Entity: ' + evt.args[1].substring(0, 10),
+                    timestamp: 0, // We will sort by blockNumber if timestamp missing
+                    blockNumber: evt.blockNumber,
+                    type: 'access'
+                })),
+                ...regEvents.map((evt: any) => ({
+                    title: 'Entity On-Boarded',
+                    entity: evt.args[2],
+                    timestamp: 0,
+                    blockNumber: evt.blockNumber,
+                    type: 'governance'
+                })),
+                ...multiSigExecEvents.map((evt: any) => ({
+                    title: 'Governance Executed',
+                    entity: 'Action #' + evt.args[1],
+                    timestamp: 0,
+                    blockNumber: evt.blockNumber,
+                    type: 'governance'
+                }))
+            ];
+
+            // Sort by block number (descending for latest first)
+            const sortedHistory = dynamicHistory.sort((a, b) => (b.blockNumber || 0) - (a.blockNumber || 0));
+            setHistory(sortedHistory);
             setIsVerified(govHistory.length > 0);
         } catch (err) {
             console.error("Error checking on-chain status:", err);
@@ -120,6 +164,45 @@ const UserDashboard: React.FC = () => {
         }
     };
 
+    const handleApproveRequest = async (requestId: string) => {
+        setLoading(true);
+        try {
+            // First, get an asset to share if possible
+            const vaultRes = await fetch('http://localhost:5050/api/vault', {
+                headers: { 'x-auth-token': token || '' }
+            });
+            const vaultData = await vaultRes.ok ? await vaultRes.json() : [];
+            
+            const payload: any = { requestId };
+            if (vaultData.length > 0) {
+                payload.fileHash = vaultData[0].fileHash;
+                payload.ipfsHash = vaultData[0].ipfsHash;
+            } else {
+                alert("Please upload a document to your Vault first so you have something to share!");
+                setLoading(false);
+                return;
+            }
+
+            const res = await fetch('http://localhost:5050/api/entity/approve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-auth-token': token || '' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert("Access approved! The bank can now view your document.");
+                fetchDashboardStats();
+            } else {
+                const err = await res.json();
+                alert(err.message || "Failed to approve");
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="animate-in" style={{ maxWidth: '1200px', margin: '0 auto' }}>
             {/* Header Section */}
@@ -186,7 +269,7 @@ const UserDashboard: React.FC = () => {
                     >
                         <option value="">Select Entity</option>
                         {institutions.map(inst => (
-                            <option key={inst.walletAddress} value={inst.walletAddress}>{inst.entityName || inst.fullName}</option>
+                            <option key={inst.walletAddress} value={inst.walletAddress}>{inst.name}</option>
                         ))}
                     </select>
                     <button className="btn btn-primary" style={{ width: '100%' }} onClick={requestVerification} disabled={!selectedEntity || loading}>
@@ -205,11 +288,14 @@ const UserDashboard: React.FC = () => {
                             history.map((log, idx) => (
                                 <div key={idx} style={{ padding: '0.75rem', borderBottom: '1px solid var(--border-glass)', fontSize: '0.85rem' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <span style={{ fontWeight: 600 }}>{log.entityName}</span>
-                                        <span style={{ color: 'var(--primary)' }}>Verified</span>
+                                        <span style={{ fontWeight: 600, color: log.type === 'governance' ? 'var(--accent)' : log.type === 'access' ? 'var(--secondary)' : '#fff' }}>{log.title}</span>
+                                        <span style={{ color: 'var(--primary)', fontSize: '0.7rem' }}>{log.type.toUpperCase()}</span>
                                     </div>
-                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                                        {new Date(Number(log.timestamp) * 1000).toLocaleString()}
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.2rem' }}>
+                                        {log.entity}
+                                    </div>
+                                    <div style={{ color: 'var(--text-dim)', fontSize: '0.7rem', marginTop: '0.2rem' }}>
+                                        {log.timestamp ? new Date(log.timestamp * 1000).toLocaleString() : `Block #${log.blockNumber}`}
                                     </div>
                                 </div>
                             ))
@@ -235,12 +321,24 @@ const UserDashboard: React.FC = () => {
                 </h3>
                 <div className="card-grid">
                     {accessRequests.map((req: any) => (
-                        <div key={req._id} className="glass" style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.02)' }}>
-                            <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>{req.entityId?.entityName || 'Institution'}</div>
-                            <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '1rem' }}>Type: {req.docType}</div>
-                            <div className={`badge ${req.status === 'approved' ? 'badge-success' : 'badge-warning'}`}>
-                                {req.status === 'approved' ? 'ACCESS GRANTED' : 'PENDING'}
+                        <div key={req._id} className="glass" style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                                <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>{req.entityId?.entityName || req.entityId?.fullName || 'Institution'}</div>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '0.5rem' }}>Type: {req.docType}</div>
+                                <div className={`badge ${req.status === 'approved' ? 'badge-success' : 'badge-warning'}`}>
+                                    {req.status === 'approved' ? 'ACCESS GRANTED' : 'PENDING'}
+                                </div>
                             </div>
+                            {req.status === 'pending' && (
+                                <button 
+                                    className="btn btn-primary" 
+                                    style={{ fontSize: '0.8rem', padding: '0.5rem 1rem' }}
+                                    onClick={() => handleApproveRequest(req._id)}
+                                    disabled={loading}
+                                >
+                                    {loading ? '...' : 'Approve Access'}
+                                </button>
+                            )}
                         </div>
                     ))}
                 </div>

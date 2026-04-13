@@ -90,4 +90,35 @@ router.post('/update-status', async (req, res) => {
     }
 });
 
+// @route   GET api/verify/user-details/:walletAddress
+// @desc    Verifier gets user details and their latest vault hash for anchoring
+router.get('/user-details/:walletAddress', auth, async (req, res) => {
+    try {
+        // Only verifiers/government can use this discovery endpoint
+        if (req.user.role !== 'government' && req.user.role !== 'verifier' && req.user.role !== 'bank') {
+            return res.status(403).json({ message: 'Unauthorized' });
+        }
+
+        const user = await User.findOne({ walletAddress: req.params.walletAddress.toLowerCase() })
+            .select('fullName walletAddress vault');
+        
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        // Get the latest hash from the vault
+        const latestDoc = user.vault && user.vault.length > 0 
+            ? user.vault[user.vault.length - 1] 
+            : null;
+
+        res.json({
+            fullName: user.fullName,
+            walletAddress: user.walletAddress,
+            latestHash: latestDoc ? latestDoc.fileHash : null,
+            latestFileName: latestDoc ? latestDoc.fileName : null
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Server error');
+    }
+});
+
 module.exports = router;

@@ -24,6 +24,11 @@ const ProofRecordSchema = new mongoose.Schema({
     verifiedAt: {
         type: Date,
         default: Date.now
+    },
+    status: {
+        type: String,
+        enum: ['pending', 'accepted', 'rejected'],
+        default: 'pending'
     }
 });
 

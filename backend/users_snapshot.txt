@@ -1,11 +1,36 @@
 === DB USERS LIST ===
-- Username: CodeX
+- Username: ShashwatGohel
   Role:     user
   Wallet:   0xfc61ac7ea45c4143cbd99fdf5eda18407e5833be
-  _id:      69b1432558c0409f368f8626
+  _id:      69bbc0eb11e3c61d6523d7c4
 --------------------
-- Username: JayShah
-  Role:     entity
+- Username: BhupendraPatel
+  Role:     government
+  Wallet:   0xcac522eecdbae2d735a7ce2de43bbac477593f7f
+  _id:      69bbc11111e3c61d6523d7cf
+--------------------
+- Username: ICICI_Bank
+  Role:     bank
   Wallet:   0xb78d867e61f1f6e84a8c41e6c5b22696249573b9
-  _id:      69b1577e8ad212b9dcfb56bd
+  _id:      69bbc18a11e3c61d6523d807
+--------------------
+- Username: dharman2701
+  Role:     user
+  Wallet:   0x4e8e3c8aa0f554a1598ffae12ac64e75dc8e5815
+  _id:      69cb4ae3ddf122b02cb2144d
+--------------------
+- Username: dharman2706
+  Role:     entity
+  Wallet:   account_tdx_2_mnrstsdv29salngw
+  _id:      69d7ed3ca60e4158f12216e2
+--------------------
+- Username: admin
+  Role:     admin
+  Wallet:   0x0af9a4a27e69b29bd448d7028181f655f64b8ca0
+  _id:      69d8be97da5cf41cd83a2b08
+--------------------
+- Username: dharman
+  Role:     entity
+  Wallet:   0x96d85789c171cf07e12a8f3b65c545263b32e5ea
+  _id:      69d8ccd22b17e1bc356e1bef
 --------------------

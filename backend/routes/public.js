@@ -7,21 +7,20 @@ const User = require('../models/User');
 router.get('/search', async (req, res) => {
     try {
         const { q } = req.query;
-        if (!q || q.length < 2) {
-            return res.json([]);
-        }
-
-        // Case-insensitive regex search
-        const regex = new RegExp(q, 'i');
-
-        // Search in fullName (for users/entities) and entityName (for institutions)
-        const results = await User.find({
-            $or: [
+        let query = { walletAddress: { $exists: true, $ne: null } };
+        
+        if (q && q.trim().length >= 1) {
+            const regex = new RegExp(q.trim(), 'i');
+            query.$or = [
                 { fullName: regex },
                 { entityName: regex }
-            ],
-            walletAddress: { $exists: true, $ne: null } // Only return if they have a wallet linked
-        }).select('fullName entityName walletAddress role');
+            ];
+        } else {
+            // If no search term, only return entities/verifiers (institutions)
+            query.role = { $in: ['entity', 'verifier'] };
+        }
+
+        const results = await User.find(query).select('fullName entityName walletAddress role');
 
         // Format results
         const formattedResults = results.map(user => ({

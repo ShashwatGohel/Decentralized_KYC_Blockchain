@@ -17,6 +17,8 @@ interface BlockchainContextType {
   isEntity: boolean;
   isGovernment: boolean;
   networkName: string;
+  isCorrectNetwork: boolean;
+  switchNetwork: () => Promise<void>;
 }
 
 const BlockchainContext = createContext<BlockchainContextType | undefined>(undefined);
@@ -31,7 +33,10 @@ export const BlockchainProvider: React.FC<{ children: ReactNode }> = ({ children
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isVerifier, setIsVerifier] = useState<boolean>(false);
   const [isGovernment, setIsGovernment] = useState<boolean>(false);
+  const [isCorrectNetwork, setIsCorrectNetwork] = useState<boolean>(!window.ethereum); // Only false if we have ethereum to check
+  const [networkChecked, setNetworkChecked] = useState<boolean>(false);
   const networkName = 'Hardhat / Local';
+  const EXPECTED_CHAIN_ID = '31337';
 
   const initBlockchain = async () => {
     if (window.ethereum) {
@@ -53,16 +58,26 @@ export const BlockchainProvider: React.FC<{ children: ReactNode }> = ({ children
           setKycContract(kyc);
           setMultiSigContract(multi);
 
-          // Detect Roles
-          const govAddress = await kyc.government();
-          setIsGovernment(address.toLowerCase() === govAddress.toLowerCase());
-          
-          const entity = await kyc.entityRegistry(address);
-          setIsVerifier(entity.isActive);
-          
+          const network = await browserProvider.getNetwork();
+          const currentChainId = network.chainId.toString();
+          console.log("Network Connection Check - Chain ID:", currentChainId);
+          console.log("ACTIVE CONTRACT ADDRESS:", contractAddresses.decentralizedKycAddress);
+          setIsCorrectNetwork(currentChainId === EXPECTED_CHAIN_ID);
+
           const isOwner = await multi.isOwner(address);
           setIsAdmin(isOwner);
 
+          // Detect Roles
+          const govAddress = await kyc.government();
+          setIsGovernment(address.toLowerCase() === govAddress.toLowerCase() || isOwner);
+          
+          const entity = await kyc.entityRegistry(address);
+          setIsVerifier(entity.isActive);
+        } else {
+            // Not connected to accounts yet, but we can still check network if provider exists
+            const browserProvider = new ethers.BrowserProvider(window.ethereum);
+            const network = await browserProvider.getNetwork();
+            setIsCorrectNetwork(network.chainId.toString() === EXPECTED_CHAIN_ID);
         }
       } catch (err) {
         console.error("Blockchain initialization error:", err);
@@ -92,6 +107,33 @@ export const BlockchainProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   };
 
+  const switchNetwork = async () => {
+    if (!window.ethereum) return;
+    try {
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: '0x7A69' }], // 31337 in hex
+      });
+    } catch (switchError: any) {
+      // This error code indicates that the chain has not been added to MetaMask.
+      if (switchError.code === 4902) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [
+              {
+                chainId: '0x7A69',
+                chainName: 'Hardhat Localhost',
+                rpcUrls: ['http://127.0.0.1:8545'],
+                nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+              },
+            ],
+          });
+        } catch (addError) {}
+      }
+    }
+  };
+
   const disconnectWallet = () => {
     setAccount(null);
     setProvider(null);
@@ -116,7 +158,9 @@ export const BlockchainProvider: React.FC<{ children: ReactNode }> = ({ children
       isVerifier,
       isEntity: isVerifier,
       isGovernment,
-      networkName
+      networkName,
+      isCorrectNetwork,
+      switchNetwork
     }}>
       {children}
     </BlockchainContext.Provider>

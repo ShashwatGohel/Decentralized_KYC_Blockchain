@@ -1,11 +1,11 @@
 # 🛡️ THE ULTIMATE STEP-BY-STEP TESTING GUIDE
 
-Follow this guide exactly. It is designed to take you from a fresh start to a fully verified Decentralized ID.
+Follow this guide exactly to test every feature of the Decentralized KYC system, from governance to privacy-preserving ZK proofs.
 
 ---
 
 ## 🏗️ PHASE 1: Governance Setup (The MultiSig Flow)
-**Objective**: Register "Nirmala Devi" as a trusted Bank on the blockchain.
+**Objective**: Register "Nirmala Devi" as a trusted Bank on the blockchain using MultiSig consensus.
 
 ### 1. Login as Admin
 *   **Action**: Go to the Login page. 
@@ -15,75 +15,116 @@ Follow this guide exactly. It is designed to take you from a fresh start to a fu
 *   **Navigation**: Click the **"Admin"** link in the top menu.
 
 ### 2. Propose the Bank (Nirmala Devi)
-*   **Form**: Find the **"Register Entity"** card on the left.
+*   **Form**: Find the **"Register Entity"** card.
 *   **Fill Name**: `Nirmala Devi`
 *   **Select Type**: `Bank`
 *   **Fill Wallet**: `0xb78d867e61f1f6e84a8c41e6c5b22696249573b9`
 *   **Click**: "Propose Registration".
-*   **MetaMask**: A popup appears. Click **"Confirm"**.
-*   **Success**: You will see "Proposal submitted successfully!" and a new item in the "Pending Proposals" list on the right.
-
-### 3. Approve as Bhupendra (MultiSig Consensus)
-*   **Logout**: In the top right, click the Logout icon (next to your name).
-*   **Login**: Login as `BhupendraPatel` / `password123`.
-*   **MetaMask**: Switch to **BhupendraPatel**'s wallet (`0xcac5...`).
-*   **Navigation**: Click the **"Admin"** link in the top menu.
-*   **Action**: Find the pending proposal for Nirmala Devi.
-*   **Click**: **"Approve"**.
 *   **MetaMask**: Confirm the transaction.
-*   **Execute**: Once the vote count shows "2 of 2", click the **"Execute"** button that appears.
-*   **Result**: Nirmala Devi is now an **Active Bank** in the system!
+*   **Success**: New item appears in "Pending Proposals".
+
+### 3. Approve as MultiSig Owner 2 (Consensus)
+*   **Logout**: Logout from the portal.
+*   **MetaMask**: Switch to **Owner 2** wallet (`0x7099...`).
+*   **Login**: Login as `admin` / `admin123` (or any admin-privileged account).
+*   **Navigation**: Go to the **Admin** dashboard.
+*   **Action**: Find the pending proposal and click **"Approve"**.
+*   **MetaMask**: Confirm.
+*   **Execute**: Once "2 of 2" approvals are reached, click **"Execute"**.
+*   **Result**: Nirmala Devi is now an **Active Bank**!
 
 ---
 
-## 👤 PHASE 2: User Onboarding (Shashwat)
-**Objective**: The user uploads their identity and grants permission.
+## 👤 PHASE 2: User Onboarding & Vault setup
+**Objective**: "Shashwat" registers his identity and secures his data in the Chrono Vault.
 
 ### 1. Login as Shashwat
 *   **Login**: Use `Shashwat` / `password123`.
 *   **MetaMask**: Switch to **Shashwat**'s wallet (`0xfc61...`).
-*   **Click**: "Go to Dashboard".
+*   **Action**: Click "Go to Dashboard".
 
-### 2. Secure your ID
-*   **Vault**: Click **"Manage Vault"** on the right.
-*   **Upload**: Select any file (e.g., a photo of an ID card).
+### 2. Secure Data in Vault
+*   **Navigation**: Click **"Manage Vault"** on the right.
+*   **Upload**: Select an ID document (e.g., Aadhar/Passport scan).
 *   **Blockchain**: Click **"Anchor on Blockchain"**.
-*   **MetaMask**: Confirm the transaction.
-*   **Status**: Your document now has an on-chain "Hash".
-
-### 3. Grant Permission
-*   **Navigation**: Go back to the main User Dashboard ("Identity").
-*   **Find**: In the "Grant Access" section, select **"Nirmala Devi"** from the dropdown.
-*   **Click**: **"Authorize Entity"**.
-*   **Logic**: If you don't do this, Nirmala Devi won't be able to see your documents!
+*   **MetaMask**: Confirm. This creates a cryptographic hash of your document on-chain.
 
 ---
 
-## 🏛️ PHASE 3: Government Verification
-**Objective**: Bhupendra vouches for Shashwat on-chain.
+## 🏛️ PHASE 3: Hash-Based Verification Flow [NEW]
+**Objective**: Government officials manually anchor a verified hash, and entities verify the user's data against it.
 
-### 1. Action by Bhupendra (Government)
-*   **Login**: Use `BhupendraPatel` / `password123`.
-*   **MetaMask**: Switch to **Bhupendra**'s wallet (`0xcac5...`).
+### 1. Government Anchoring (Admin Dashboard)
+*   **Login**: Login as `admin` (Owner 1).
+*   **MetaMask**: Switch to `0x0af9...`.
+*   **Navigation**: Admin Dashboard -> **"Manual Document Verification (On-Chain Anchor)"**.
+*   **Fill**:
+    *   User Wallet: `0xfc61ac7ea45c4143cbd99fdf5eda18407e5833be` (Shashwat)
+    *   Doc Type: `Identity Certificate`
+    *   Doc Hash: Paste the hash from Shashwat's Vault (or use a test hash like `0xabc...`).
+*   **Action**: Click "Propose On-Chain Verification".
+*   **Consensus**: Follow Phase 1, Step 3 (Owner 2 approval) to **Execute** this proposal.
+
+### 2. Entity Matching (Institution Portal)
+*   **Login**: Login as `Nirmala Devi` / `password123`.
+*   **MetaMask**: Switch to `0xb78d...`.
+*   **Search**: In "Institution Portal", search for `Shashwat`.
+*   **Action**: Click **"View Details"** -> **"Perform Document Check"**.
+*   **Result**: Should show **"Valid & Vouched"**.
+*   **Verification**: Paste Shashwat's document hash into the "Verify User-Provided Hash" field and click **"Verify Match"**.
+*   **Bingo**: If the hashes match, a **"CRYPTOGRAPHIC MATCH CONFIRMED"** badge appears!
+
+---
+
+## 🛡️ PHASE 4: Global Verification Engine
+**Objective**: Direct on-chain vouching without MultiSig (for recognized agencies).
+
+### 1. Verification Agency Action
+*   **Login**: Login as `BhupendraPatel` / `password123`.
+*   **MetaMask**: Switch to `0xcac5...`.
 *   **Navigation**: Click **"Protocol"** or **"Verification Engine"**.
 *   **Search**: Search for `Shashwat`.
-*   **Click**: **"Verify Document"**.
-*   **Result**: Shashwat is now "Government Verified".
+*   **Action**: Click **"Verify Document"** or **"Anchor Identity"**.
+*   **Result**: Shashwat's identity is vouched for on the blockchain immediately.
 
 ---
 
-## 🏦 PHASE 4: Bank Finalization (Nirmala Devi)
-**Objective**: The bank checks the documents and receives a ZK Proof.
+## 🔒 PHASE 5: Privacy-Preserving ZK Proofs
+**Objective**: Prove details (like Age > 18) without revealing the actual data.
 
-### 1. Action by Nirmala Devi (Bank)
-*   **Login**: Use `Nirmala Devi` / `password123`.
-*   **MetaMask**: Switch to **Nirmala Devi**'s wallet (`0xb78d...`).
-*   **Navigation**: Click **"Portal"**.
-*   **Search**: Find `Shashwat`.
-*   **Action**: Click **"Perform Document Check"**.
-*   **Status**: It will say **"Valid & Vouched"** because Bhupendra previously verified it!
+### 1. Grant Access
+*   **User Step**: Login as `Shashwat`. In the dashboard, select `Nirmala Devi` and click **"Authorize Entity"**.
 
-### 2. The Zero-Knowledge Proof (Privacy)
-*   **Shashwat Step**: Login as Shashwat, go to **"ZK Proofs"**, click **"Generate Age Proof"**, then **"Submit to Nirmala Devi"**.
-*   **Nirmala Step**: In the Bank portal, click **"Verify ZK Proof"**.
-*   **Magic**: You successfully confirmed Shashwat is over 18 without ever seeing his Birth Date!
+### 2. Generate and Submit Proof
+*   **User Step**: Go to **"ZK Proofs"** page.
+*   **Action**: Click **"Generate Age Proof"** -> **"Submit to Nirmala Devi"**.
+
+### 3. Verify Privacy on Bank Side
+*   **Bank Step**: Login as `Nirmala Devi`. View Shashwat's details.
+*   **Action**: Under "ZK Proofs Available", click **"Verify On-Chain Math"**.
+*   **Result**: The smart contract verifies the ZK Proof. If valid, click **"Accept"**.
+*   **Privacy**: You've confirmed his age without ever seeing his Birth Date!
+
+---
+
+## 📊 PHASE 6: Public Transparency & Audit
+**Objective**: View the immutable protocol trail.
+
+*   **Navigation**: Click **"Public Ledger"** in the top menu.
+*   **Insight**: You can see every `UserRegistered`, `DocumentVerified`, and `ExecuteTransaction` event in real-time.
+*   **Inspector**: Click any row to open the **Transaction Inspector** and see the raw decoded parameters.
+
+---
+
+## 🚫 PHASE 7: Network Governance (Bans)
+**Objective**: Revoke access for fraudulent users via decentralized consensus.
+
+### 1. Initiate Ban
+*   **Bank Step**: Login as `Nirmala Devi`. Open Shashwat's portfolio.
+*   **Action**: Click **"Initiate Ban Vote"**. Provide a reason (e.g., "Document Fraud").
+*   **Consensus**: This creates a MultiSig proposal.
+
+### 2. Finalize Ban
+*   **Admin Step**: Login as `admin`. Go to Admin Dashboard -> **"Pending Proposals"**.
+*   **Consensus**: As with Phase 1, get TWO admins to approve and click **"Execute"**.
+*   **Result**: The user `Shashwat` is now globally banned. You can see this in the "Active Network Bans" table!

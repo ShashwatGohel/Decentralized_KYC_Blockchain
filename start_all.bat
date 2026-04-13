@@ -3,6 +3,9 @@ echo ===================================================
 echo     Starting Decentralized KYC System Services
 echo ===================================================
 echo.
+echo Cleaning up stalled processes and clearing ports...
+taskkill /f /im node.exe >nul 2>&1
+
 echo [1/4] Starting Local Hardhat Node...
 start "Blockchain Node" cmd /k "cd smart-contract && npx hardhat node"
 

@@ -19,10 +19,82 @@ const Vault: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [sharingWith, setSharingWith] = useState<{ [key: string]: string }>({});
+    
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [fileHash, setFileHash] = useState('');
+    const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
         if (token) fetchVault();
     }, [token]);
+
+    const calculateHash = async (file: File) => {
+        const buffer = await file.arrayBuffer();
+        const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        setFileHash(hashHex);
+        return hashHex;
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            setSelectedFile(file);
+            await calculateHash(file);
+        }
+    };
+
+    const handleUploadToVault = async () => {
+        if (!selectedFile || !fileHash || !token) return;
+        setUploading(true);
+        try {
+            const res = await fetch('http://localhost:5050/api/vault/add', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'x-auth-token': token 
+                },
+                body: JSON.stringify({
+                    fileName: selectedFile.name,
+                    fileHash: fileHash,
+                    ipfsHash: `ipfs://${fileHash.slice(0, 10)}...` // Mock IPFS
+                })
+            });
+            if (res.ok) {
+                setMessage('Document added to secure vault successfully.');
+                setSelectedFile(null);
+                setFileHash('');
+                fetchVault();
+            } else {
+                setMessage('Failed to add document to vault.');
+            }
+        } catch (err) {
+            console.error('Upload error:', err);
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleAnchorOnChain = async () => {
+        if (!kycContract || !fileHash) {
+            alert("Please calculate hash and connect wallet first.");
+            return;
+        }
+        setUploading(true);
+        try {
+            const tx = await kycContract.registerUser("User Identity", fileHash);
+            setMessage("Anchoring hash on blockchain...");
+            await tx.wait();
+            setMessage("Hash successfully anchored on-chain!");
+            fetchVault();
+        } catch (err: any) {
+            console.error(err);
+            alert(`Anchoring Failed: ${err.reason || err.message}`);
+        } finally {
+            setUploading(false);
+        }
+    };
 
     const fetchVault = async () => {
         setLoading(true);
@@ -39,10 +111,10 @@ const Vault: React.FC = () => {
         }
     };
 
-    const handleDelete = async (fileHash: string) => {
+    const handleDelete = async (fileKey: string) => {
         if (!window.confirm("Delete this document? This will remove the local record and IPFS link.")) return;
         try {
-            const res = await fetch(`http://localhost:5050/api/vault/${fileHash}`, {
+            const res = await fetch(`http://localhost:5050/api/vault/${fileKey}`, {
                 method: 'DELETE',
                 headers: { 'x-auth-token': token || '' }
             });
@@ -53,18 +125,18 @@ const Vault: React.FC = () => {
         } catch (err) {}
     };
 
-    const handleShare = async (fileHash: string) => {
-        const entity = sharingWith[fileHash];
+    const handleShare = async (fileKey: string) => {
+        const entity = sharingWith[fileKey];
         if (!entity || !token) return;
         try {
             const res = await fetch('http://localhost:5050/api/vault/share', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-                body: JSON.stringify({ fileHash, entityName: entity })
+                body: JSON.stringify({ fileHash: fileKey, entityName: entity })
             });
             if (res.ok) {
                 setMessage(`Certificate shared with ${entity}`);
-                setSharingWith({ ...sharingWith, [fileHash]: '' });
+                setSharingWith({ ...sharingWith, [fileKey]: '' });
                 fetchVault();
             }
         } catch (err) {}
@@ -88,6 +160,47 @@ const Vault: React.FC = () => {
                     <CheckCircle size={16} /> {message}
                 </div>
             )}
+
+            {/* Upload Section */}
+            <div className="glass" style={{ padding: '2.5rem', marginBottom: '3rem', borderTop: '4px solid var(--primary)' }}>
+                <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <FileText size={24} color="var(--primary)" /> Add New Document
+                </h3>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <label className="btn btn-ghost" style={{ border: '2px dashed var(--border-glass)', height: '120px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                            <Globe size={24} />
+                            <span>{selectedFile ? selectedFile.name : 'Select ID Document'}</span>
+                            <input type="file" onChange={handleFileChange} style={{ display: 'none' }} />
+                        </label>
+                        {fileHash && (
+                            <div style={{ fontSize: '0.7rem', fontFamily: 'monospace', color: 'var(--text-muted)', background: 'rgba(0,0,0,0.2)', padding: '0.5rem', borderRadius: '4px', wordBreak: 'break-all' }}>
+                                FINGERPRINT: {fileHash}
+                            </div>
+                        )}
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <button 
+                            className="btn btn-primary" 
+                            disabled={!selectedFile || uploading}
+                            onClick={handleUploadToVault}
+                            style={{ height: '50%' }}
+                        >
+                            Upload to Secure Vault
+                        </button>
+                        <button 
+                            className="btn btn-secondary" 
+                            disabled={!fileHash || uploading}
+                            onClick={handleAnchorOnChain}
+                            style={{ height: '50%' }}
+                        >
+                            <Lock size={16} /> Anchor on Blockchain
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             <div className="glass" style={{ padding: '3rem' }}>
                 <h3 style={{ marginBottom: '2.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>

@@ -152,6 +152,25 @@
         "type": "address"
       },
       {
+        "indexed": false,
+        "internalType": "string",
+        "name": "statement",
+        "type": "string"
+      }
+    ],
+    "name": "ZKProofRevoked",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
         "indexed": true,
         "internalType": "address",
         "name": "verifier",
@@ -320,6 +339,24 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "_user",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "_name",
+        "type": "string"
+      }
+    ],
+    "name": "governmentRegisterUser",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "_entity",
         "type": "address"
       }
@@ -384,6 +421,19 @@
       }
     ],
     "name": "revokeAccess",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_statement",
+        "type": "string"
+      }
+    ],
+    "name": "revokeZKProof",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

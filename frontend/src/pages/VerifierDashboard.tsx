@@ -5,28 +5,81 @@ import { Shield, AlertTriangle, CheckCircle, Search, UserCheck } from 'lucide-re
 
 const VerifierDashboard: React.FC = () => {
     const { isGovernment, isVerifier, kycContract, account } = useBlockchain();
-    const { token } = useAuth();
+    const { token, user } = useAuth();
     const [userAddress, setUserAddress] = useState('');
     const [docType, setDocType] = useState('Identity Certificate');
     const [documentHash, setDocumentHash] = useState('');
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState<{ type: 'success' | 'error' | '', msg: string }>({ type: '', msg: '' });
     const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+    
+    // Discovery States
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
 
     useEffect(() => {
-        if (token && (isGovernment || isVerifier)) {
+        if (token && (isGovernment || isVerifier || user?.role === 'government' || user?.role === 'bank' || user?.role === 'verifier')) {
             fetchPendingRequests();
         }
-    }, [token, isGovernment, isVerifier]);
+    }, [token, isGovernment, isVerifier, user?.role]);
 
     const fetchPendingRequests = async () => {
         try {
-            const res = await fetch('http://localhost:5050/api/verify/pending', {
+            const res = await fetch('http://localhost:5050/api/verify/incoming', {
                 headers: { 'x-auth-token': token || '' }
             });
             const data = await res.json();
             if (res.ok) setPendingRequests(data);
         } catch (err) {}
+    };
+
+    const handleSearch = async (val: string) => {
+        setSearchTerm(val);
+        if (val.trim().length < 2) {
+            setSearchResults([]);
+            return;
+        }
+
+        setIsSearching(true);
+        try {
+            const res = await fetch(`http://localhost:5050/api/public/search?q=${val}`);
+            const data = await res.json();
+            if (res.ok) {
+                // Only show 'user' role for verification engine
+                setSearchResults(data.filter((u: any) => u.role === 'user'));
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+    const selectUser = async (user: any) => {
+        setUserAddress(user.walletAddress);
+        setSearchTerm('');
+        setSearchResults([]);
+        
+        // Fetch detailed vault data for this user
+        setLoading(true);
+        try {
+            const res = await fetch(`http://localhost:5050/api/verify/user-details/${user.walletAddress}`, {
+                headers: { 'x-auth-token': token || '' }
+            });
+            const data = await res.json();
+            if (res.ok && data.latestHash) {
+                setDocumentHash(data.latestHash);
+                setStatus({ type: 'success', msg: `Protocol Match: Found ${data.latestFileName} in ${user.name}'s vault.` });
+            } else if (res.ok && !data.latestHash) {
+                setDocumentHash('');
+                setStatus({ type: 'error', msg: `${user.name} has no uploaded documents in their vault yet.` });
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleVerify = async (e?: React.FormEvent, overrideAddress?: string, overrideHash?: string) => {
@@ -63,7 +116,7 @@ const VerifierDashboard: React.FC = () => {
         }
     };
 
-    if (!isGovernment && !isVerifier) {
+    if (!isGovernment && !isVerifier && user?.role !== 'government' && user?.role !== 'bank' && user?.role !== 'verifier') {
         return (
             <div className="glass animate-in" style={{ padding: '6rem 3rem', textAlign: 'center', marginTop: '4rem' }}>
                 <div style={{ marginBottom: '1.5rem', color: 'var(--error)' }}><AlertTriangle size={48} /></div>
@@ -88,10 +141,40 @@ const VerifierDashboard: React.FC = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '2rem' }}>
                 {/* Manual Verification Form */}
                 <div className="glass" style={{ padding: '2.5rem' }}>
-                    <h3 style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <UserCheck size={24} /> Direct On-Chain Verification
                     </h3>
                     
+                    {/* Discovery Search Bar */}
+                    <div style={{ position: 'relative', marginBottom: '2.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border-glass)', borderRadius: '12px', padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.02)' }}>
+                            <Search size={18} style={{ opacity: 0.5, marginRight: '0.75rem' }} />
+                            <input 
+                                type="text"
+                                placeholder="Search Protocol Registry by Name..."
+                                value={searchTerm}
+                                onChange={(e) => handleSearch(e.target.value)}
+                                style={{ border: 'none', padding: '0.5rem 0', boxShadow: 'none' }}
+                            />
+                        </div>
+                        {searchResults.length > 0 && (
+                            <div className="glass" style={{ position: 'absolute', top: '110%', left: 0, right: 0, zIndex: 10, padding: '0.5rem', maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--primary-glow)' }}>
+                                {searchResults.map((u, i) => (
+                                    <div 
+                                        key={i} 
+                                        onClick={() => selectUser(u)}
+                                        style={{ padding: '0.75rem', borderRadius: '8px', cursor: 'pointer', transition: '0.2s', borderBottom: i !== searchResults.length - 1 ? '1px solid var(--border-glass)' : 'none' }}
+                                        className="search-result-item"
+                                    >
+                                        <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{u.name}</div>
+                                        <div style={{ fontSize: '0.7rem', opacity: 0.5, fontFamily: 'monospace' }}>{u.walletAddress}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {isSearching && <div style={{ position: 'absolute', top: '50%', right: '1rem', transform: 'translateY(-50%)', fontSize: '0.8rem', opacity: 0.5 }}>Syncing...</div>}
+                    </div>
+
                     {status.msg && (
                         <div className={`badge ${status.type === 'success' ? 'badge-success' : 'badge-error'}`} style={{ width: '100%', padding: '1rem', marginBottom: '2rem', borderRadius: '8px', background: status.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: status.type === 'success' ? 'var(--primary)' : 'var(--error)' }}>
                             {status.msg}
