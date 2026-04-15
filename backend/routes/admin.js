@@ -106,4 +106,46 @@ router.post('/sync-entity', auth, async (req, res) => {
     }
 });
 
+// @route   POST api/admin/verified-attributes
+// @desc    Government/Admin sets verified attributes used for ZK proofs
+router.post('/verified-attributes', auth, async (req, res) => {
+    try {
+        // Only government/admin may set these
+        if (req.user.role !== 'government' && req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Unauthorized' });
+        }
+
+        const { userWallet, age, income } = req.body;
+        if (!userWallet) return res.status(400).json({ message: 'userWallet is required' });
+
+        const user = await User.findOne({ walletAddress: userWallet.toLowerCase() });
+        if (!user) return res.status(404).json({ message: 'User not found for wallet' });
+
+        if (age !== undefined && age !== null) {
+            const a = Number(age);
+            if (!Number.isFinite(a) || a < 0 || a > 255) {
+                return res.status(400).json({ message: 'Invalid age (expected 0-255)' });
+            }
+            user.verifiedAttributes.age = a;
+        }
+
+        if (income !== undefined && income !== null) {
+            const inc = Number(income);
+            if (!Number.isFinite(inc) || inc < 0 || inc > 4294967295) {
+                return res.status(400).json({ message: 'Invalid income (expected 0 - 2^32-1)' });
+            }
+            user.verifiedAttributes.income = inc;
+        }
+
+        user.verifiedAttributes.updatedAt = new Date();
+        user.verifiedAttributes.updatedBy = req.user.role;
+
+        await user.save();
+        res.json({ message: 'Verified attributes saved', verifiedAttributes: user.verifiedAttributes });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Server Error');
+    }
+});
+
 module.exports = router;

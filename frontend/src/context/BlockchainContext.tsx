@@ -37,6 +37,26 @@ export const BlockchainProvider: React.FC<{ children: ReactNode }> = ({ children
   const [networkChecked, setNetworkChecked] = useState<boolean>(false);
   const networkName = 'Hardhat / Local';
   const EXPECTED_CHAIN_ID = '31337';
+  const DEV_GAS_MIN = ethers.parseEther('0.01');
+
+  const ensureLocalDevGas = async (browserProvider: ethers.BrowserProvider, address: string, isOnExpectedNetwork: boolean) => {
+    try {
+      if (!isOnExpectedNetwork) return;
+      const bal = await browserProvider.getBalance(address);
+      if (bal >= DEV_GAS_MIN) return;
+
+      const token = localStorage.getItem('token') || '';
+      if (!token) return; // user not logged in yet
+
+      await fetch('http://localhost:5050/api/dev/faucet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({ address })
+      });
+    } catch (e) {
+      // non-fatal; user can still manually fund
+    }
+  };
 
   const initBlockchain = async () => {
     if (window.ethereum) {
@@ -62,14 +82,19 @@ export const BlockchainProvider: React.FC<{ children: ReactNode }> = ({ children
           const currentChainId = network.chainId.toString();
           console.log("Network Connection Check - Chain ID:", currentChainId);
           console.log("ACTIVE CONTRACT ADDRESS:", contractAddresses.decentralizedKycAddress);
-          setIsCorrectNetwork(currentChainId === EXPECTED_CHAIN_ID);
+          const onExpected = currentChainId === EXPECTED_CHAIN_ID;
+          setIsCorrectNetwork(onExpected);
+
+          // Auto-fund new MetaMask accounts on local Hardhat so gas never blocks txs.
+          await ensureLocalDevGas(browserProvider, address, onExpected);
 
           const isOwner = await multi.isOwner(address);
           setIsAdmin(isOwner);
 
           // Detect Roles
           const govAddress = await kyc.government();
-          setIsGovernment(address.toLowerCase() === govAddress.toLowerCase() || isOwner);
+          // Government must be the explicit on-chain government address (MultiSig owners are "admin", not government)
+          setIsGovernment(address.toLowerCase() === govAddress.toLowerCase());
           
           const entity = await kyc.entityRegistry(address);
           setIsVerifier(entity.isActive);

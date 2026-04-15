@@ -10,7 +10,6 @@ const PROOF_CIRCUITS = [
         icon: <User size={24} />,
         description: 'Prove you are 18 or older without revealing your actual age.',
         fields: [
-            { name: 'age', label: 'Your Private Age', type: 'number', placeholder: 'e.g. 25' },
             { name: 'min_age', label: 'Minimum Threshold (Public)', type: 'number', placeholder: '18', defaultValue: '18' }
         ]
     },
@@ -20,7 +19,6 @@ const PROOF_CIRCUITS = [
         icon: <Banknote size={24} />, 
         description: 'Prove your income meets a threshold without revealing the exact amount.',
         fields: [
-            { name: 'income', label: 'Your Private Income', type: 'number', placeholder: 'e.g. 80000' },
             { name: 'threshold', label: 'Minimum Threshold (Public)', type: 'number', placeholder: '50000', defaultValue: '50000' }
         ]
     }
@@ -166,12 +164,15 @@ const Verify: React.FC = () => {
                                 <h3 style={{ margin: 0 }}>{circuit.title}</h3>
                             </div>
                             <p style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '2rem' }}>{circuit.description}</p>
+                            <div className="badge badge-success" style={{ marginBottom: '1.5rem' }}>
+                                Private value is pulled from Government-verified records (not user input).
+                            </div>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '2rem' }}>
                                 {circuit.fields.map(field => (
                                     <div key={field.name}>
                                         <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 700, color: 'var(--text-muted)' }}>
-                                            {field.label} {field.name === 'age' || field.name === 'income' ? <Lock size={10} /> : <Globe size={10} />}
+                                            {field.label} <Globe size={10} />
                                         </label>
                                         <input
                                             type={field.type}

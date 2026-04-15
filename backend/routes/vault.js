@@ -12,7 +12,8 @@ router.post('/add', auth, async (req, res) => {
         const { fileName, ipfsHash, fileHash } = req.body;
         const user = await User.findById(req.user.id);
 
-        user.vault.push({ fileName, ipfsHash, fileHash });
+        // Any new upload must be re-verified (status drives "Fully Verified" UI)
+        user.vault.push({ fileName, ipfsHash, fileHash, status: 'Pending Verification' });
         await user.save();
 
         res.json(user.vault);

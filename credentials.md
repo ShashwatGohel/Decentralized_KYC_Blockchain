@@ -8,8 +8,8 @@ All default passwords have been reset to `password123` (except admin).
 
 | User / Entity Name | Role | Password | Registered Wallet Address |
 | :--- | :--- | :--- | :--- |
-| **`admin`** | **Admin / Multisig Owner 1** | `admin123` | `0x0af9a4a27e69b29bd448d7028181f655f64b8ca0` |
-| `BhupendraPatel` | Government | `password123` | `0xcac522eecdbae2d735a7ce2de43bbac477593f7f` |
+| **`admin`** | **Admin / Multisig Owner 1** | `admin123` | `0x3aF75be923b21Fe14B5717895215C1975B71186d` |
+| `BhupendraPatel` | Government | `password123` | `0x585CaE62915e95eFbba7615D39B7F7e103A1BdB9` |
 | `Nirmala Devi` | Bank (ICICI) | `password123` | `0xb78d867e61f1f6e84a8c41e6c5b22696249573b9` |
 | `Shashwat` | User | `password123` | `0xfc61ac7ea45c4143cbd99fdf5eda18407e5833be` |
 | `dharman2701` | User | `password123` | `0x4e8e3c8aa0f554a1598ffae12ac64e75dc8e5815` |
@@ -24,7 +24,7 @@ All default passwords have been reset to `password123` (except admin).
 To execute an "Entity Registration", **TWO** of these owners must sign the transaction.
 
 **Owner 1 (Admin/Deployer)**
-- **Address**: `0x0af9a4a27e69b29bd448d7028181f655f64b8ca0`
+- **Address**: `0x3aF75be923b21Fe14B5717895215C1975B71186d`
 - **Private Key**: `[REDACTED - USER TO PROVIDE OR IMPORT]`
 
 **Owner 2**

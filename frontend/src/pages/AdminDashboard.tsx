@@ -31,7 +31,7 @@ const AdminDashboard: React.FC = () => {
     });
 
     useEffect(() => {
-        if ((isAdmin || user?.role === 'admin' || user?.role === 'government') && multiSigContract && kycContract && isCorrectNetwork) {
+        if ((isAdmin || user?.role === 'admin') && multiSigContract && kycContract && isCorrectNetwork) {
             console.log("Admin Dashboard detected: Fetching data for account:", account);
             fetchStats();
             fetchEntities();
@@ -271,7 +271,7 @@ const AdminDashboard: React.FC = () => {
         }
     };
 
-    if (!isAdmin && user?.role !== 'admin' && user?.role !== 'government') {
+    if (!isAdmin && user?.role !== 'admin') {
         return (
             <div className="fade-in" style={{ padding: '6rem 3rem', textAlign: 'center', marginTop: '4rem' }}>
                 <div style={{ marginBottom: '1.5rem', color: 'var(--error)' }}><ShieldAlert size={64} /></div>

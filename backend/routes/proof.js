@@ -4,40 +4,38 @@ const auth = require('../middleware/auth');
 const snarkjs = require('snarkjs');
 const path = require('path');
 const fs = require('fs');
+const User = require('../models/User');
 
 const ZK_BUILD_PATH = path.join(__dirname, '..', '..', 'zk_proofs', 'build');
 
-// Helper to generate proof
-async function generateZKProof(circuitType, inputs) {
-    console.log(`[ZK Mock] Simulating cryptographic proof generation for ${circuitType}...`, inputs);
-    // Mock sleep to simulate heavy cryptography
-    await new Promise(resolve => setTimeout(resolve, 800));
+function requireFile(p) {
+    if (!fs.existsSync(p)) {
+        const err = new Error(`ZK artifact missing: ${p}`);
+        err.statusCode = 500;
+        throw err;
+    }
+}
 
-    // --- MOCK LOGIC TO SIMULATE ZK CONSTRAINTS ---
-    if (circuitType === 'age_verify') {
-        if (Number(inputs.age) < Number(inputs.min_age)) {
-            throw new Error("ZK Constraint Failed: Age does not meet the minimum public threshold.");
-        }
-    } else if (circuitType === 'income_verify') {
-        if (Number(inputs.income) < Number(inputs.threshold)) {
-            throw new Error("ZK Constraint Failed: Income does not meet the minimum public threshold.");
-        }
+async function generateAndVerifyGroth16(circuitType, inputs) {
+    const buildDir = path.join(ZK_BUILD_PATH, circuitType);
+    const wasmPath = path.join(buildDir, `${circuitType}_js`, `${circuitType}.wasm`);
+    const zkeyPath = path.join(buildDir, `${circuitType}_final.zkey`);
+    const vkeyPath = path.join(buildDir, `verification_key.json`);
+
+    requireFile(wasmPath);
+    requireFile(zkeyPath);
+    requireFile(vkeyPath);
+
+    const { proof, publicSignals } = await snarkjs.groth16.fullProve(inputs, wasmPath, zkeyPath);
+    const vkey = JSON.parse(fs.readFileSync(vkeyPath, 'utf-8'));
+    const isValid = await snarkjs.groth16.verify(vkey, publicSignals, proof);
+    if (!isValid) {
+        const err = new Error('Generated proof did not verify (invalid artifacts or inputs)');
+        err.statusCode = 400;
+        throw err;
     }
 
-    const dummyProof = {
-        pi_a: ["0x01", "0x02", "0x03"],
-        pi_b: [
-            ["0x04", "0x05"],
-            ["0x06", "0x07"],
-            ["0x08", "0x09"]
-        ],
-        pi_c: ["0x0a", "0x0b", "0x0c"]
-    };
-    
-    // Simulate public signals for UI (e.g. threshold met)
-    const publicSignals = ["0x01", "0x00"]; 
-
-    return { proof: dummyProof, publicSignals };
+    return { proof, publicSignals };
 }
 
 // @route   POST api/proof/generate
@@ -48,8 +46,37 @@ router.post('/generate', auth, async (req, res) => {
         
         console.log(`[ZK] Generating proof for ${circuit_type}...`);
         
-        // In a real app, inputs should be verified against DB/Vault data
-        const { proof, publicSignals } = await generateZKProof(circuit_type, inputs);
+        // IMPORTANT: do NOT trust user-entered private inputs.
+        // We bind private values to server-stored verified attributes (set by government/admin).
+        const me = await User.findById(req.user.id).select('verifiedAttributes');
+        if (!me) return res.status(404).json({ message: 'User not found' });
+
+        let fullInputs = {};
+        if (circuit_type === 'age_verify') {
+            const minAge = Number(inputs?.min_age ?? 18);
+            if (!Number.isFinite(minAge) || minAge < 0 || minAge > 255) {
+                return res.status(400).json({ message: 'Invalid min_age (expected 0-255)' });
+            }
+            const verifiedAge = me.verifiedAttributes?.age;
+            if (verifiedAge === null || verifiedAge === undefined) {
+                return res.status(400).json({ message: 'No government-verified age available for this user' });
+            }
+            fullInputs = { age: Number(verifiedAge), min_age: minAge };
+        } else if (circuit_type === 'income_verify') {
+            const threshold = Number(inputs?.threshold ?? 50000);
+            if (!Number.isFinite(threshold) || threshold < 0 || threshold > 4294967295) {
+                return res.status(400).json({ message: 'Invalid threshold (expected 0 - 2^32-1)' });
+            }
+            const verifiedIncome = me.verifiedAttributes?.income;
+            if (verifiedIncome === null || verifiedIncome === undefined) {
+                return res.status(400).json({ message: 'No government-verified income available for this user' });
+            }
+            fullInputs = { income: Number(verifiedIncome), threshold };
+        } else {
+            return res.status(400).json({ message: `Unsupported circuit_type: ${circuit_type}` });
+        }
+
+        const { proof, publicSignals } = await generateAndVerifyGroth16(circuit_type, fullInputs);
 
         res.json({
             proof,
@@ -58,7 +85,7 @@ router.post('/generate', auth, async (req, res) => {
         });
     } catch (err) {
         console.error("ZK Generation Error:", err);
-        res.status(500).json({ message: 'ZK Proof Generation Failed', error: err.message });
+        res.status(err.statusCode || 500).json({ message: 'ZK Proof Generation Failed', error: err.message });
     }
 });
 

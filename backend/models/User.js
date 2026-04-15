@@ -48,6 +48,12 @@ const UserSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    verifiedAttributes: {
+        age: { type: Number, default: null },
+        income: { type: Number, default: null },
+        updatedAt: { type: Date, default: null },
+        updatedBy: { type: String, default: null } // wallet or username
+    },
     createdAt: {
         type: Date,
         default: Date.now

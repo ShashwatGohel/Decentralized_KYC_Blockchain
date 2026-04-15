@@ -13,6 +13,7 @@ import UserDashboard from './pages/UserDashboard';
 import PublicStatus from './pages/PublicStatus';
 import PublicLedger from './pages/PublicLedger';
 import AdminDashboard from './pages/AdminDashboard';
+import GovernmentDashboard from './pages/GovernmentDashboard';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -36,7 +37,8 @@ const App: React.FC = () => {
                 <Route path="/verifier" element={<ProtectedRoute><VerifierDashboard /></ProtectedRoute>} />
                 <Route path="/entity" element={<ProtectedRoute><EntityDashboard /></ProtectedRoute>} />
                 <Route path="/user" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
-                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+                <Route path="/government" element={<ProtectedRoute><GovernmentDashboard /></ProtectedRoute>} />
                 <Route path="/admin-dashboard" element={<Navigate to="/admin" replace />} />
                 <Route path="/Admindashboard" element={<Navigate to="/admin" replace />} />
                 <Route path="/Admindashboad" element={<Navigate to="/admin" replace />} />

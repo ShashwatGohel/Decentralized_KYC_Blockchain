@@ -43,6 +43,7 @@ const Home: React.FC = () => {
           <button 
             onClick={() => {
               if (user?.role === 'admin') navigate('/admin');
+              else if (user?.role === 'government') navigate('/government');
               else if (user?.role === 'entity') navigate('/entity');
               else navigate('/user');
             }} 

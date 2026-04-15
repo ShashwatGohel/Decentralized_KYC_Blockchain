@@ -86,7 +86,8 @@ const UserDashboard: React.FC = () => {
             // Sort by block number (descending for latest first)
             const sortedHistory = dynamicHistory.sort((a, b) => (b.blockNumber || 0) - (a.blockNumber || 0));
             setHistory(sortedHistory);
-            setIsVerified(govHistory.length > 0);
+            // "Fully Verified" is determined by latest vault document status (set via verify-sync)
+            // so a new upload requires re-verification.
         } catch (err) {
             console.error("Error checking on-chain status:", err);
         }
@@ -127,7 +128,11 @@ const UserDashboard: React.FC = () => {
                 headers: { 'x-auth-token': token }
             });
             const vaultData = await vaultRes.json();
-            if (vaultRes.ok) setAssetCount(vaultData.length);
+            if (vaultRes.ok) {
+                setAssetCount(vaultData.length);
+                const latest = vaultData && vaultData.length ? vaultData[vaultData.length - 1] : null;
+                setIsVerified(Boolean(latest && latest.status === 'Verified'));
+            }
         } catch (err) {
             console.error('Stats fetch error:', err);
         }

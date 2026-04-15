@@ -211,13 +211,15 @@ contract DecentralizedKYC {
         uint256[2][2] memory _pB,
         uint256[2] memory _pC,
         uint256[2] memory _pubSignals
-    ) public returns (bool) {
+    ) public onlyRegisteredEntity returns (bool) {
+        require(users[_user].isRegistered, "User not registered");
+        require(accessGranted[_user][msg.sender], "Access not granted by user");
         
-        // --- WINDOWS DEV BYPASS ---
-        // IZKVerifier verifier = IZKVerifier(zkVerifierAddress);
-        // bool isValid = verifier.verifyProof(_pA, _pB, _pC, _pubSignals);
-        // require(isValid, "Invalid ZK Proof");
-        // --------------------------
+        IZKVerifier verifier = IZKVerifier(zkVerifierAddress);
+        bool isValid = verifier.verifyProof(_pA, _pB, _pC, _pubSignals);
+        require(isValid, "Invalid ZK Proof");
+        // Circuits output an `is_valid` signal as the last public signal
+        require(_pubSignals[1] == 1, "ZK statement failed");
 
         emit ZKProofVerified(_user, msg.sender, _statement);
         return true;

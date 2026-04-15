@@ -28,6 +28,7 @@ app.use('/api/verify', require('./routes/verify'));
 app.use('/api/kyc', require('./routes/kyc'));
 app.use('/api/proof', require('./routes/proof'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/dev', require('./routes/dev'));
 
 const { router: ledgerRouter, startLedgerPolling } = require('./routes/ledger');
 app.use('/api/ledger', ledgerRouter);

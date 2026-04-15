@@ -18,10 +18,10 @@ async function main() {
   // 2. Deploy MultiSigWallet
   // BhupendraPatel added as an owner for easier testing
   const owners = [
-    "0x0af9a4a27e69b29bd448d7028181f655f64b8ca0", // New Admin Wallet
+    "0x3aF75be923b21Fe14B5717895215C1975B71186d", // New Admin Wallet
     admin2.address, 
     admin3.address, 
-    "0xcac522eecdbae2d735a7ce2de43bbac477593f7f" // BhupendraPatel
+    "0x585CaE62915e95eFbba7615D39B7F7e103A1BdB9" // BhupendraPatel
   ];
   const requiredConfirmations = 2;
   console.log("Deploying MultiSigWallet with owners:", owners);
@@ -43,7 +43,7 @@ async function main() {
   console.log("Pre-registering core identities...");
   const nirmalaAddr = hre.ethers.getAddress("0xb78d867e61f1f6e84a8c41e6c5b22696249573b9");
   const shashwatAddr = hre.ethers.getAddress("0xfc61ac7ea45c4143cbd99fdf5eda18407e5833be");
-  const bhupendraAddr = hre.ethers.getAddress("0xcac522eecdbae2d735a7ce2de43bbac477593f7f");
+  const bhupendraAddr = hre.ethers.getAddress("0x585CaE62915e95eFbba7615D39B7F7e103A1BdB9");
 
   // Register Nirmala Devi (Bank)
   const regEntityTx = await decentralizedKyc.registerEntity(nirmalaAddr, 1, "Nirmala Devi", "standard");
@@ -56,7 +56,7 @@ async function main() {
   console.log("Bhupendra (Government) Registered:", bhupendraAddr);
 
   // Automatically Fund core wallets so gas never runs out on node restart
-  const adminAddr = "0x0af9a4a27e69b29bd448d7028181f655f64b8ca0";
+  const adminAddr = "0x3aF75be923b21Fe14B5717895215C1975B71186d";
   const dharmanAddr = "0x4e8e3c8aa0f554a1598ffae12ac64e75dc8e5815";
   const accountsToFund = [adminAddr, bhupendraAddr, nirmalaAddr, shashwatAddr, dharmanAddr];
 

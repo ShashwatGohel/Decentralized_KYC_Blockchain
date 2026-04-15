@@ -86,7 +86,10 @@ const Navbar: React.FC = () => {
                 {(isVerifier || isGovernment || user?.role === 'government' || user?.role === 'bank' || user?.role === 'verifier') && (
                   <Link to="/verifier" className={`nav-link ${isActive('/verifier') ? 'active' : ''}`}>Verification Engine</Link>
                 )}
-                {(isAdmin || user?.role === 'admin' || user?.role === 'government') && (
+                {(user?.role === 'government' || isGovernment) && (
+                  <Link to="/government" className={`nav-link ${isActive('/government') ? 'active' : ''}`}>Government</Link>
+                )}
+                {(isAdmin || user?.role === 'admin') && (
                   <Link to="/admin" className={`nav-link ${isActive('/admin') ? 'active' : ''}`}>Admin</Link>
                 )}
               </>
